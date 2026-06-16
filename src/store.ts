@@ -38,6 +38,12 @@ export interface PriceSnapshot {
   polledAt: number;
 }
 
+export interface AdminStats {
+  totalUsers: number;
+  activeUsers30d: number;
+  topFiredRules: Array<{ ruleId: string; fireCount: number }>;
+}
+
 export interface PersistentStore {
   createAlertRule(rule: AlertRule): Promise<void>;
   getAlertRules(userId: number): Promise<AlertRule[]>;
@@ -60,6 +66,9 @@ export interface PersistentStore {
   isAlertSuppressed(userId: number, ruleId: string): Promise<boolean>;
   setTimezone(userId: number, timezone: string): Promise<void>;
   getTimezone(userId: number): Promise<string | null>;
+  recordUserActivity(userId: number): Promise<void>;
+  incrementAlertFireCount(ruleId: string): Promise<void>;
+  getAdminStats(): Promise<AdminStats>;
 }
 
 function createRedisClient(url: string) {
