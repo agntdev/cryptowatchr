@@ -1,10 +1,14 @@
 import { fileURLToPath } from "node:url";
 import { createBot, menuKeyboard, inlineKeyboard } from "@agntdev/bot-toolkit";
+import { createStore, newAlertRule } from "./store.js";
 
 export interface Session {
   initializedAt: string;
   onboardingStep?: "timezone" | "confirm";
   timezone?: string;
+  alertStep?: "type" | "coin" | "direction" | "price";
+  alertCoin?: string;
+  alertDirection?: "above" | "below";
 }
 
 const WELCOME_TEXT = [
@@ -95,7 +99,6 @@ const HELP_TEXT = [
 const MENU_RESPONSES: Record<string, string> = {
   "menu:add": "Add Coin will let you add BTC, ETH, TON, or a custom ticker to your watchlist.",
   "menu:watchlist": "My Watchlist will show your tracked coins and remove buttons.",
-  "menu:alerts": "Create Alert will guide you through threshold and percent-move alerts.",
   "menu:price": "Price Check will show current prices for one coin or your full watchlist.",
   "menu:settings": "Settings will manage timezone, quiet hours, cooldown, and morning summaries.",
   "menu:help": "Help will list commands and explain how CryptoWatchr alerts work.",
@@ -138,7 +141,63 @@ function confirmKeyboard() {
   ]);
 }
 
+const ALERT_TYPE_TEXT = "Choose the type of alert you want to create:";
+
+function alertTypeKeyboard() {
+  return inlineKeyboard([
+    [{ text: "Threshold Alert", callback_data: "alert:type:threshold" }],
+    [{ text: "Percent Alert", callback_data: "alert:type:percent" }],
+    [{ text: "Back to menu", callback_data: "menu:back" }],
+  ]);
+}
+
+const COIN_SELECTION_TEXT = "Select a coin for your threshold alert:";
+
+function coinSelectionKeyboard() {
+  return inlineKeyboard([
+    [{ text: "Bitcoin (BTC)", callback_data: "alert:coin:BTC" }],
+    [{ text: "Ethereum (ETH)", callback_data: "alert:coin:ETH" }],
+    [{ text: "Toncoin (TON)", callback_data: "alert:coin:TON" }],
+    [{ text: "Custom ticker", callback_data: "alert:coin:custom" }],
+    [{ text: "Back", callback_data: "alert:back:type" }],
+  ]);
+}
+
+function directionKeyboard(coin: string) {
+  return inlineKeyboard([
+    [{ text: "Above", callback_data: "alert:dir:above" }],
+    [{ text: "Below", callback_data: "alert:dir:below" }],
+    [{ text: "Back", callback_data: "alert:back:coin" }],
+  ]);
+}
+
+function directionText(coin: string) {
+  return `${coin}: When should this threshold alert fire?`;
+}
+
+function priceKeyboard() {
+  return inlineKeyboard([
+    [{ text: "Cancel", callback_data: "alert:cancel" }],
+  ]);
+}
+
+function pricePromptText(coin: string, direction: string) {
+  return `Enter the price threshold in USD for:\n\n${coin} ${direction}\n\nExample: if you enter 60000, you will be alerted when ${coin} goes ${direction} $60,000.`;
+}
+
+function alertCreatedText(coin: string, direction: string, price: number) {
+  const formattedPrice = price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `Alert created: ${coin} ${direction} $${formattedPrice}`;
+}
+
+function clearAlertSession(session: Session) {
+  session.alertStep = undefined;
+  session.alertCoin = undefined;
+  session.alertDirection = undefined;
+}
+
 export function makeBot(token = process.env.BOT_TOKEN ?? "test:cryptowatchr") {
+  const store = createStore();
   const bot = createBot<Session>(token, {
     initial: () => ({ initializedAt: new Date(0).toISOString() }),
     onError: async (err) => {
@@ -155,11 +214,13 @@ export function makeBot(token = process.env.BOT_TOKEN ?? "test:cryptowatchr") {
   });
 
   bot.command("start", async (ctx) => {
+    clearAlertSession(ctx.session);
     ctx.session.onboardingStep = "timezone";
     await ctx.reply(WELCOME_TEXT, { reply_markup: timezoneKeyboard() });
   });
 
   bot.command("help", async (ctx) => {
+    clearAlertSession(ctx.session);
     await ctx.reply(HELP_TEXT, { parse_mode: "Markdown", reply_markup: mainMenu() });
   });
 
@@ -190,6 +251,97 @@ export function makeBot(token = process.env.BOT_TOKEN ?? "test:cryptowatchr") {
       return;
     }
 
+    // --- Alert flow callbacks ---
+
+    if (data === "menu:alerts") {
+      clearAlertSession(ctx.session);
+      ctx.session.alertStep = "type";
+      await ctx.answerCallbackQuery();
+      await ctx.editMessageText(ALERT_TYPE_TEXT, { reply_markup: alertTypeKeyboard() });
+      return;
+    }
+
+    if (data === "menu:back") {
+      clearAlertSession(ctx.session);
+      await ctx.answerCallbackQuery();
+      await ctx.editMessageText(MAIN_MENU_TEXT, { reply_markup: mainMenu() });
+      return;
+    }
+
+    if (data === "alert:type:threshold") {
+      ctx.session.alertStep = "coin";
+      await ctx.answerCallbackQuery();
+      await ctx.editMessageText(COIN_SELECTION_TEXT, { reply_markup: coinSelectionKeyboard() });
+      return;
+    }
+
+    if (data === "alert:type:percent") {
+      await ctx.answerCallbackQuery({ text: "Percent alerts coming soon." });
+      return;
+    }
+
+    if (data.startsWith("alert:coin:")) {
+      const coin = data.slice("alert:coin:".length);
+
+      if (coin === "custom") {
+        ctx.session.alertStep = "coin";
+        await ctx.answerCallbackQuery();
+        await ctx.editMessageText(
+          "Enter the coin ticker (e.g. SOL, DOGE, ADA):",
+          { reply_markup: inlineKeyboard([[{ text: "Back", callback_data: "alert:back:type" }]]) },
+        );
+        return;
+      }
+
+      ctx.session.alertCoin = coin;
+      ctx.session.alertStep = "direction";
+      await ctx.answerCallbackQuery();
+      await ctx.editMessageText(directionText(coin), { reply_markup: directionKeyboard(coin) });
+      return;
+    }
+
+    if (data === "alert:back:type") {
+      ctx.session.alertStep = "type";
+      ctx.session.alertCoin = undefined;
+      ctx.session.alertDirection = undefined;
+      await ctx.answerCallbackQuery();
+      await ctx.editMessageText(ALERT_TYPE_TEXT, { reply_markup: alertTypeKeyboard() });
+      return;
+    }
+
+    if (data === "alert:back:coin") {
+      ctx.session.alertStep = "coin";
+      ctx.session.alertDirection = undefined;
+      await ctx.answerCallbackQuery();
+      await ctx.editMessageText(COIN_SELECTION_TEXT, { reply_markup: coinSelectionKeyboard() });
+      return;
+    }
+
+    if (data === "alert:cancel") {
+      clearAlertSession(ctx.session);
+      await ctx.answerCallbackQuery();
+      await ctx.editMessageText(MAIN_MENU_TEXT, { reply_markup: mainMenu() });
+      return;
+    }
+
+    if (data.startsWith("alert:dir:")) {
+      const dir = data.slice("alert:dir:".length) as "above" | "below";
+      const coin = ctx.session.alertCoin;
+      if (!coin) {
+        clearAlertSession(ctx.session);
+        await ctx.answerCallbackQuery();
+        await ctx.editMessageText(MAIN_MENU_TEXT, { reply_markup: mainMenu() });
+        return;
+      }
+      ctx.session.alertDirection = dir;
+      ctx.session.alertStep = "price";
+      await ctx.answerCallbackQuery();
+      await ctx.editMessageText(pricePromptText(coin, dir), { reply_markup: priceKeyboard() });
+      return;
+    }
+
+    // --- End alert flow callbacks ---
+
     const response = MENU_RESPONSES[data];
 
     if (!response) {
@@ -216,6 +368,64 @@ export function makeBot(token = process.env.BOT_TOKEN ?? "test:cryptowatchr") {
       }
       return;
     }
+
+    // --- Alert flow message handlers ---
+
+    if (ctx.session.alertStep === "coin") {
+      const ticker = ctx.message?.text?.trim().toUpperCase();
+      if (ticker && ticker.length >= 2) {
+        ctx.session.alertCoin = ticker;
+        ctx.session.alertStep = "direction";
+        await ctx.reply(directionText(ticker), { reply_markup: directionKeyboard(ticker) });
+      } else {
+        await ctx.reply(
+          "Please enter a valid ticker (e.g. BTC, ETH).",
+          { reply_markup: inlineKeyboard([[{ text: "Back", callback_data: "alert:back:type" }]]) },
+        );
+      }
+      return;
+    }
+
+    if (ctx.session.alertStep === "price") {
+      const raw = ctx.message?.text?.trim().replace(/[,\s$]/g, "");
+      const price = Number(raw);
+      const coin = ctx.session.alertCoin;
+      const direction = ctx.session.alertDirection;
+
+      if (isNaN(price) || price <= 0) {
+        if (coin && direction) {
+          await ctx.reply(
+            "Please enter a valid positive number for the price in USD.",
+            { reply_markup: priceKeyboard() },
+          );
+        } else {
+          clearAlertSession(ctx.session);
+          await ctx.reply("Something went wrong. Please try again from the Create Alert menu.", { reply_markup: mainMenu() });
+        }
+        return;
+      }
+
+      if (!coin || !direction) {
+        clearAlertSession(ctx.session);
+        await ctx.reply(MAIN_MENU_TEXT, { reply_markup: mainMenu() });
+        return;
+      }
+
+      const rule = newAlertRule(ctx.chat!.id, coin, direction, price);
+      try {
+        await store.createAlertRule(rule);
+      } catch {
+        await ctx.reply("Failed to save your alert. Please try again later.", { reply_markup: mainMenu() });
+        clearAlertSession(ctx.session);
+        return;
+      }
+
+      clearAlertSession(ctx.session);
+      await ctx.reply(alertCreatedText(coin, direction, price), { reply_markup: mainMenu() });
+      return;
+    }
+
+    // --- End alert flow message handlers ---
 
     await ctx.reply("CryptoWatchr is online. Send /start to begin setup.");
   });
