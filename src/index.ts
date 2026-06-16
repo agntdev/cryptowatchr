@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { createBot, menuKeyboard, inlineKeyboard } from "@agntdev/bot-toolkit";
 import { createStore, newAlertRule, newPercentAlertRule, type AlertRule, type WatchlistEntry, type MorningSummary, type PersistentStore } from "./store.js";
-import { fetchPrices, formatPriceDisplay } from "./price.js";
+import { fetchPrices, formatPriceDisplay, PriceFetchError } from "./price.js";
 import { startPoller } from "./poller.js";
 
 export interface Session {
@@ -226,6 +226,32 @@ function coinIdForTicker(ticker: string): string | null {
 }
 
 export { coinIdForTicker, KNOWN_COINS };
+
+function priceErrorMessage(kind: "network" | "rate_limit" | "server" | "unknown"): string {
+  switch (kind) {
+    case "network":
+      return "The price service is unreachable. Please check your connection and try again.";
+    case "rate_limit":
+      return "The price service is busy. Please wait a moment and try again.";
+    case "server":
+      return "The price service is experiencing issues. Please try again later.";
+    default:
+      return "Unable to fetch price data right now. Please try again later.";
+  }
+}
+
+function priceCallbackText(kind: "network" | "rate_limit" | "server" | "unknown"): string {
+  switch (kind) {
+    case "network":
+      return "Service unreachable.";
+    case "rate_limit":
+      return "Service busy, wait a moment.";
+    case "server":
+      return "Service experiencing issues.";
+    default:
+      return "Unable to fetch prices.";
+  }
+}
 
 function detectTimezone(languageCode?: string): string {
   if (languageCode) {
@@ -736,8 +762,11 @@ export function makeBot(store?: PersistentStore, token = process.env.BOT_TOKEN ?
         const data = await fetchPrices([coinId]);
         const text = formatPriceDisplay(data, [{ ticker, coinId }]);
         await ctx.reply(text, { reply_markup: mainMenu() });
-      } catch {
-        await ctx.reply("Unable to fetch price data right now. Please try again later.", { reply_markup: mainMenu() });
+      } catch (err) {
+        const msg = err instanceof PriceFetchError
+          ? priceErrorMessage(err.kind)
+          : "Unable to fetch price data right now. Please try again later.";
+        await ctx.reply(msg, { reply_markup: mainMenu() });
       }
       return;
     }
@@ -760,8 +789,11 @@ export function makeBot(store?: PersistentStore, token = process.env.BOT_TOKEN ?
       const data = await fetchPrices(coinIds);
       const text = formatPriceDisplay(data, entries.map((e) => ({ ticker: e.ticker, coinId: e.coinId })));
       await ctx.reply(text, { reply_markup: mainMenu() });
-    } catch {
-      await ctx.reply("Unable to fetch price data right now. Please try again later.", { reply_markup: mainMenu() });
+    } catch (err) {
+      const msg = err instanceof PriceFetchError
+        ? priceErrorMessage(err.kind)
+        : "Unable to fetch price data right now. Please try again later.";
+      await ctx.reply(msg, { reply_markup: mainMenu() });
     }
   });
 
@@ -1266,9 +1298,15 @@ export function makeBot(store?: PersistentStore, token = process.env.BOT_TOKEN ?
         const text = formatPriceDisplay(data, entries.map((e) => ({ ticker: e.ticker, coinId: e.coinId })));
         await ctx.answerCallbackQuery();
         await ctx.editMessageText(text, { reply_markup: mainMenu() });
-      } catch {
-        await ctx.answerCallbackQuery({ text: "Unable to fetch prices." });
-        await ctx.editMessageText("Unable to fetch price data right now. Please try again later.", { reply_markup: mainMenu() });
+      } catch (err) {
+        const cbText = err instanceof PriceFetchError
+          ? priceCallbackText(err.kind)
+          : "Unable to fetch prices.";
+        const msgText = err instanceof PriceFetchError
+          ? priceErrorMessage(err.kind)
+          : "Unable to fetch price data right now. Please try again later.";
+        await ctx.answerCallbackQuery({ text: cbText });
+        await ctx.editMessageText(msgText, { reply_markup: mainMenu() });
       }
       return;
     }
