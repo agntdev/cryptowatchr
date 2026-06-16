@@ -14,6 +14,15 @@ interface CoinGeckoPriceResponse {
   };
 }
 
+export class PriceFetchError extends Error {
+  kind: "network" | "rate_limit" | "server" | "unknown";
+  constructor(message: string, kind: PriceFetchError["kind"]) {
+    super(message);
+    this.name = "PriceFetchError";
+    this.kind = kind;
+  }
+}
+
 const COINGECKO_BASE = "https://api.coingecko.com/api/v3";
 
 export async function fetchPrices(coinIds: string[]): Promise<CoinGeckoPriceResponse> {
@@ -22,19 +31,24 @@ export async function fetchPrices(coinIds: string[]): Promise<CoinGeckoPriceResp
   const ids = coinIds.join(",");
   const url = `${COINGECKO_BASE}/simple/price?ids=${encodeURIComponent(ids)}&vs_currencies=usd&include_24hr_change=true&include_last_updated_at=true`;
 
-  const response = await fetch(url);
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch (err) {
+    throw new PriceFetchError("Network error reaching the price service", "network");
+  }
 
   if (!response.ok) {
-    throw new Error(`CoinGecko API returned ${response.status}`);
+    if (response.status === 429) {
+      throw new PriceFetchError("Rate limited by the price service", "rate_limit");
+    }
+    if (response.status >= 500) {
+      throw new PriceFetchError("The price service encountered an error", "server");
+    }
+    throw new PriceFetchError(`Unexpected response from price service (${response.status})`, "unknown");
   }
 
   const data = (await response.json()) as CoinGeckoPriceResponse;
-
-  for (const id of coinIds) {
-    if (!data[id]) {
-      data[id] = { usd: 0, usd_24h_change: null, last_updated_at: 0 };
-    }
-  }
 
   return data;
 }
@@ -61,8 +75,11 @@ export function formatPriceDisplay(data: CoinGeckoPriceResponse, entries: Array<
 
   for (const entry of entries) {
     const coin = data[entry.coinId];
-    const price = coin ? `$${coin.usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "N/A";
-    const change = coin?.usd_24h_change != null
+    const unavailable = !coin;
+    const price = unavailable || coin.usd <= 0
+      ? "Unavailable"
+      : `$${coin.usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const change = !unavailable && coin.usd_24h_change != null
       ? `${coin.usd_24h_change >= 0 ? "+" : ""}${coin.usd_24h_change.toFixed(1)}%`
       : "N/A";
 
@@ -73,7 +90,7 @@ export function formatPriceDisplay(data: CoinGeckoPriceResponse, entries: Array<
       lines.push(`\u2022 ${entry.ticker}: ${price} (${change})`);
     }
 
-    if (coin?.last_updated_at) {
+    if (!unavailable && coin.last_updated_at) {
       timestamps.push(coin.last_updated_at);
     }
   }
