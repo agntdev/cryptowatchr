@@ -1,8 +1,35 @@
 import { fileURLToPath } from "node:url";
-import { createBot, menuKeyboard } from "@agntdev/bot-toolkit";
+import { createBot, menuKeyboard, inlineKeyboard } from "@agntdev/bot-toolkit";
 
 export interface Session {
   initializedAt: string;
+  onboardingStep?: "timezone" | "confirm";
+  timezone?: string;
+}
+
+const WELCOME_TEXT = [
+  "Welcome to CryptoWatchr!",
+  "",
+  "Track cryptocurrencies, create price alerts, check the latest prices, and tune your quiet hours \u2014 all from Telegram.",
+  "",
+  "Let\u2019s get you set up. What\u2019s your timezone?",
+  "You can also type a custom timezone like UTC+2 or America/New_York.",
+].join("\n");
+
+const DEFAULT_QUIET_START = "22:00";
+const DEFAULT_QUIET_END = "07:00";
+const DEFAULT_COOLDOWN_HOURS = 1;
+
+function confirmText(tz: string) {
+  return [
+    `Timezone set to ${tz}.`,
+    "",
+    "Your default settings:",
+    `\u2022 Quiet hours: ${DEFAULT_QUIET_START}\u2013${DEFAULT_QUIET_END} (alerts suppressed while you sleep)`,
+    `\u2022 Alert cooldown: ${DEFAULT_COOLDOWN_HOURS} hour (no repeat alerts for the same rule)`,
+    "",
+    "You can change these anytime in Settings.",
+  ].join("\n");
 }
 
 const MAIN_MENU_TEXT = [
@@ -34,17 +61,66 @@ function mainMenu() {
   );
 }
 
+function timezoneKeyboard() {
+  return inlineKeyboard([
+    [
+      { text: "UTC-8 (PST)", callback_data: "onboard:tz:UTC-8" },
+      { text: "UTC-5 (EST)", callback_data: "onboard:tz:UTC-5" },
+    ],
+    [
+      { text: "UTC+0 (GMT)", callback_data: "onboard:tz:UTC+0" },
+      { text: "UTC+3 (MSK)", callback_data: "onboard:tz:UTC+3" },
+    ],
+    [
+      { text: "UTC+8 (CST)", callback_data: "onboard:tz:UTC+8" },
+      { text: "Skip for now", callback_data: "onboard:skip" },
+    ],
+  ]);
+}
+
+function confirmKeyboard() {
+  return inlineKeyboard([
+    [{ text: "Continue to menu", callback_data: "onboard:done" }],
+  ]);
+}
+
 export function makeBot(token = process.env.BOT_TOKEN ?? "test:cryptowatchr") {
   const bot = createBot<Session>(token, {
     initial: () => ({ initializedAt: new Date(0).toISOString() }),
   });
 
   bot.command("start", async (ctx) => {
-    await ctx.reply(MAIN_MENU_TEXT, { reply_markup: mainMenu() });
+    ctx.session.onboardingStep = "timezone";
+    await ctx.reply(WELCOME_TEXT, { reply_markup: timezoneKeyboard() });
   });
 
   bot.on("callback_query:data", async (ctx) => {
     const data = ctx.callbackQuery.data;
+
+    if (data.startsWith("onboard:tz:")) {
+      const tz = data.slice("onboard:tz:".length);
+      ctx.session.timezone = tz;
+      ctx.session.onboardingStep = "confirm";
+      await ctx.answerCallbackQuery();
+      await ctx.editMessageText(confirmText(tz), { reply_markup: confirmKeyboard() });
+      return;
+    }
+
+    if (data === "onboard:skip") {
+      ctx.session.onboardingStep = undefined;
+      ctx.session.timezone = undefined;
+      await ctx.answerCallbackQuery();
+      await ctx.editMessageText(MAIN_MENU_TEXT, { reply_markup: mainMenu() });
+      return;
+    }
+
+    if (data === "onboard:done") {
+      ctx.session.onboardingStep = undefined;
+      await ctx.answerCallbackQuery();
+      await ctx.editMessageText(MAIN_MENU_TEXT, { reply_markup: mainMenu() });
+      return;
+    }
+
     const response = MENU_RESPONSES[data];
 
     if (!response) {
@@ -58,6 +134,16 @@ export function makeBot(token = process.env.BOT_TOKEN ?? "test:cryptowatchr") {
 
   bot.on("message", async (ctx) => {
     if (ctx.message?.text?.startsWith("/")) {
+      return;
+    }
+
+    if (ctx.session.onboardingStep === "timezone") {
+      const tz = ctx.message?.text?.trim();
+      if (tz) {
+        ctx.session.timezone = tz;
+        ctx.session.onboardingStep = "confirm";
+        await ctx.reply(confirmText(tz), { reply_markup: confirmKeyboard() });
+      }
       return;
     }
 

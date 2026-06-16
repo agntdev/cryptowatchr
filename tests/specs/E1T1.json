@@ -1,0 +1,150 @@
+[
+  {
+    "name": "/start initiates onboarding with timezone selection",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Welcome to CryptoWatchr!\n\nTrack cryptocurrencies, create price alerts, check the latest prices, and tune your quiet hours \u2014 all from Telegram.\n\nLet\u2019s get you set up. What\u2019s your timezone?\nYou can also type a custom timezone like UTC+2 or America/New_York.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "UTC-8 (PST)", "callback_data": "onboard:tz:UTC-8" },
+                    { "text": "UTC-5 (EST)", "callback_data": "onboard:tz:UTC-5" }
+                  ],
+                  [
+                    { "text": "UTC+0 (GMT)", "callback_data": "onboard:tz:UTC+0" },
+                    { "text": "UTC+3 (MSK)", "callback_data": "onboard:tz:UTC+3" }
+                  ],
+                  [
+                    { "text": "UTC+8 (CST)", "callback_data": "onboard:tz:UTC+8" },
+                    { "text": "Skip for now", "callback_data": "onboard:skip" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "selecting a timezone shows defaults and confirmation",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:tz:UTC+3", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Timezone set to UTC+3.\n\nYour default settings:\n\u2022 Quiet hours: 22:00\u201307:00 (alerts suppressed while you sleep)\n\u2022 Alert cooldown: 1 hour (no repeat alerts for the same rule)\n\nYou can change these anytime in Settings.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [{ "text": "Continue to menu", "callback_data": "onboard:done" }]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "confirming onboarding shows the main menu",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:tz:UTC+3", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "onboard:done", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Welcome to CryptoWatchr.\n\nTrack coins, create price alerts, check the latest prices, and tune your quiet hours from the menu below.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "Add Coin", "callback_data": "menu:add" },
+                    { "text": "My Watchlist", "callback_data": "menu:watchlist" }
+                  ],
+                  [
+                    { "text": "Create Alert", "callback_data": "menu:alerts" },
+                    { "text": "Price Check", "callback_data": "menu:price" }
+                  ],
+                  [
+                    { "text": "Settings", "callback_data": "menu:settings" },
+                    { "text": "Help", "callback_data": "menu:help" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "skipping onboarding shows the main menu",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Welcome to CryptoWatchr.\n\nTrack coins, create price alerts, check the latest prices, and tune your quiet hours from the menu below."
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "typing a custom timezone during onboarding",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "text": "UTC+5" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Timezone set to UTC+5.\n\nYour default settings:\n\u2022 Quiet hours: 22:00\u201307:00 (alerts suppressed while you sleep)\n\u2022 Alert cooldown: 1 hour (no repeat alerts for the same rule)\n\nYou can change these anytime in Settings.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [{ "text": "Continue to menu", "callback_data": "onboard:done" }]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+]
