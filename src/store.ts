@@ -36,6 +36,11 @@ export interface PersistentStore {
   getWatchlist(userId: number): Promise<WatchlistEntry[]>;
   removeFromWatchlist(userId: number, ticker: string): Promise<void>;
   isInWatchlist(userId: number, ticker: string): Promise<boolean>;
+  recordActiveUser(userId: number): Promise<void>;
+  getTotalUsers(): Promise<number>;
+  getActiveUsers(since: Date): Promise<number>;
+  incrementAlertFireCount(userId: number, ruleId: string): Promise<void>;
+  getTopFiredAlertRules(limit: number): Promise<Array<AlertRule & { fireCount: number }>>;
 }
 
 function createRedisClient(url: string) {
@@ -114,6 +119,70 @@ class RedisStore implements PersistentStore {
     const exists = await this.#client.hexists(WATCHLIST_KEY(userId), ticker);
     return exists === 1;
   }
+
+  async recordActiveUser(userId: number): Promise<void> {
+    const now = new Date().toISOString();
+    await this.#client.sadd(`${PREFIX}users:all`, String(userId));
+    await this.#client.set(`${PREFIX}user:${userId}:last_seen`, now);
+  }
+
+  async getTotalUsers(): Promise<number> {
+    return this.#client.scard(`${PREFIX}users:all`);
+  }
+
+  async getActiveUsers(since: Date): Promise<number> {
+    const allIds = await this.#client.smembers(`${PREFIX}users:all`);
+    if (allIds.length === 0) return 0;
+    const keys = allIds.map((id: string) => `${PREFIX}user:${id}:last_seen`);
+    const values = await Promise.all(keys.map((k: string) => this.#client.get(k)));
+    const sinceStr = since.toISOString();
+    let count = 0;
+    for (const v of values) {
+      if (v && v >= sinceStr) count++;
+    }
+    return count;
+  }
+
+  async incrementAlertFireCount(userId: number, ruleId: string): Promise<void> {
+    await this.#client.incr(`${PREFIX}alert:${userId}:${ruleId}:fire_count`);
+  }
+
+  async getTopFiredAlertRules(limit: number): Promise<Array<AlertRule & { fireCount: number }>> {
+    const pattern = `${PREFIX}alert:*:fire_count`;
+    const keys: string[] = [];
+    let cursor = "0";
+    do {
+      const [next, found] = await this.#client.scan(cursor, "MATCH", pattern, "COUNT", 100);
+      cursor = next;
+      keys.push(...found);
+    } while (cursor !== "0");
+
+    if (keys.length === 0) return [];
+
+    const counts = await Promise.all(keys.map((k: string) => this.#client.get(k)));
+    const scored: Array<{ userId: number; ruleId: string; fireCount: number }> = [];
+    for (let i = 0; i < keys.length; i++) {
+      const count = Number(counts[i] ?? 0);
+      if (count <= 0) continue;
+      const key = keys[i];
+      const match = key.match(/^cryptowatchr:alert:(\d+):([^:]+):fire_count$/);
+      if (!match) continue;
+      scored.push({ userId: Number(match[1]), ruleId: match[2], fireCount: count });
+    }
+
+    scored.sort((a, b) => b.fireCount - a.fireCount);
+    const top = scored.slice(0, limit);
+
+    const rules: Array<AlertRule & { fireCount: number }> = [];
+    for (const s of top) {
+      const raw = await this.#client.get(`${PREFIX}alert:${s.userId}:${s.ruleId}`);
+      if (raw) {
+        const rule = JSON.parse(raw) as AlertRule;
+        rules.push({ ...rule, fireCount: s.fireCount });
+      }
+    }
+    return rules;
+  }
 }
 
 class MemoryStore implements PersistentStore {
@@ -121,6 +190,8 @@ class MemoryStore implements PersistentStore {
   #userRules = new Map<number, Set<string>>();
   #quietHours = new Map<number, QuietHours>();
   #watchlist = new Map<number, Map<string, WatchlistEntry>>();
+  #userLastSeen = new Map<number, Map<string, string>>();
+  #alertFireCounts = new Map<string, number>();
 
   async createAlertRule(rule: AlertRule): Promise<void> {
     this.#rules.set(rule.id, rule);
@@ -176,6 +247,58 @@ class MemoryStore implements PersistentStore {
 
   async isInWatchlist(userId: number, ticker: string): Promise<boolean> {
     return this.#watchlist.get(userId)?.has(ticker) ?? false;
+  }
+
+  async recordActiveUser(userId: number): Promise<void> {
+    const now = new Date().toISOString();
+    let set = this.#userLastSeen.get(userId);
+    if (!set) {
+      set = new Map();
+      this.#userLastSeen.set(userId, set);
+    }
+    set.set("last_seen", now);
+  }
+
+  async getTotalUsers(): Promise<number> {
+    return this.#userLastSeen.size;
+  }
+
+  async getActiveUsers(since: Date): Promise<number> {
+    const sinceStr = since.toISOString();
+    let count = 0;
+    for (const [, data] of this.#userLastSeen) {
+      const lastSeen = data.get("last_seen");
+      if (lastSeen && lastSeen >= sinceStr) count++;
+    }
+    return count;
+  }
+
+  async incrementAlertFireCount(userId: number, ruleId: string): Promise<void> {
+    const key = `${userId}:${ruleId}`;
+    const current = this.#alertFireCounts.get(key) ?? 0;
+    this.#alertFireCounts.set(key, current + 1);
+  }
+
+  async getTopFiredAlertRules(limit: number): Promise<Array<AlertRule & { fireCount: number }>> {
+    const scored = [...this.#alertFireCounts.entries()]
+      .filter(([, count]) => count > 0)
+      .map(([key, count]) => {
+        const [uid, rid] = key.split(":");
+        return { userId: Number(uid), ruleId: rid, fireCount: count };
+      });
+    scored.sort((a, b) => b.fireCount - a.fireCount);
+    const top = scored.slice(0, limit);
+
+    const rules: Array<AlertRule & { fireCount: number }> = [];
+    for (const s of top) {
+      const idSet = this.#userRules.get(s.userId);
+      if (!idSet?.has(s.ruleId)) continue;
+      const rule = this.#rules.get(s.ruleId);
+      if (rule) {
+        rules.push({ ...rule, fireCount: s.fireCount });
+      }
+    }
+    return rules;
   }
 }
 

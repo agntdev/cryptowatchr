@@ -593,6 +593,8 @@ function clearAlertSession(session: Session) {
   session.alertPctTimeframe = undefined;
 }
 
+const OWNER_ID = process.env.OWNER_TELEGRAM_ID ? Number(process.env.OWNER_TELEGRAM_ID) : null;
+
 export function makeBot(token = process.env.BOT_TOKEN ?? "test:cryptowatchr") {
   const store = createStore();
   const bot = createBot<Session>(token, {
@@ -608,6 +610,17 @@ export function makeBot(token = process.env.BOT_TOKEN ?? "test:cryptowatchr") {
         }
       }
     },
+  });
+
+  bot.use(async (ctx, next) => {
+    if (ctx.chat?.id) {
+      try {
+        await store.recordActiveUser(ctx.chat.id);
+      } catch {
+        // best-effort user tracking
+      }
+    }
+    await next();
   });
 
   bot.command("start", async (ctx) => {
@@ -695,6 +708,41 @@ export function makeBot(token = process.env.BOT_TOKEN ?? "test:cryptowatchr") {
       await ctx.reply(text, { reply_markup: mainMenu() });
     } catch {
       await ctx.reply("Unable to fetch price data right now. Please try again later.", { reply_markup: mainMenu() });
+    }
+  });
+
+  bot.command("admin_stats", async (ctx) => {
+    if (OWNER_ID === null || ctx.from?.id !== OWNER_ID) {
+      await ctx.reply("This command is only available to the bot owner.");
+      return;
+    }
+
+    try {
+      const totalUsers = await store.getTotalUsers();
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const activeUsers = await store.getActiveUsers(thirtyDaysAgo);
+      const topRules = await store.getTopFiredAlertRules(10);
+
+      const lines = [
+        "*Admin Stats*",
+        "",
+        `\u2022 Total users: ${totalUsers}`,
+        `\u2022 Active users (last 30 days): ${activeUsers}`,
+      ];
+
+      if (topRules.length > 0) {
+        lines.push("", "*Top-Fired Alert Rules:*");
+        for (let i = 0; i < topRules.length; i++) {
+          const r = topRules[i];
+          lines.push(`${i + 1}. ${formatAlertDescription(r)} \u2014 fired ${r.fireCount} time${r.fireCount === 1 ? "" : "s"}`);
+        }
+      } else {
+        lines.push("", "No alert rules have fired yet.");
+      }
+
+      await ctx.reply(lines.join("\n"), { parse_mode: "Markdown" });
+    } catch {
+      await ctx.reply("Failed to load admin stats. Please try again later.");
     }
   });
 

@@ -1,0 +1,45 @@
+[
+  {
+    "name": "/admin_stats by non-owner returns access denied",
+    "steps": [
+      {
+        "send": { "text": "/admin_stats", "chatId": 99999, "userId": 99999 },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "This command is only available to the bot owner."
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "/admin_stats by owner shows stats",
+    "steps": [
+      {
+        "send": { "text": "/start", "chatId": 1, "userId": 1 },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1, "chatId": 1, "userId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "/admin_stats", "chatId": 1, "userId": 1 },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "parse_mode": "Markdown"
+            }
+          }
+        ]
+      }
+    ]
+  }
+]
