@@ -672,6 +672,13 @@ export function makeBot(token = process.env.BOT_TOKEN ?? "test:cryptowatchr") {
     },
   });
 
+  bot.use(async (ctx, next) => {
+    if (ctx.chat?.id) {
+      await store.recordUserActivity(ctx.chat.id);
+    }
+    await next();
+  });
+
   bot.command("start", async (ctx) => {
     clearAlertSession(ctx.session);
     clearAlertManageSession(ctx.session);
@@ -775,6 +782,45 @@ export function makeBot(token = process.env.BOT_TOKEN ?? "test:cryptowatchr") {
       return;
     }
     await ctx.reply(summaryStatusText(summary), { parse_mode: "Markdown", reply_markup: summaryStatusKeyboard(summary) });
+  });
+
+  bot.command("admin_stats", async (ctx) => {
+    const ownerIdRaw = process.env.OWNER_TELEGRAM_ID;
+    if (!ownerIdRaw || ctx.from?.id !== Number(ownerIdRaw)) {
+      return;
+    }
+    let totalUsers: number;
+    let activeUsers: number;
+    let allRules: import("./store.js").AlertRule[];
+    try {
+      [totalUsers, activeUsers, allRules] = await Promise.all([
+        store.getUserCount(),
+        store.getActiveUserCount(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)),
+        store.getAllAlertRules(),
+      ]);
+    } catch {
+      await ctx.reply("Failed to load admin stats. Please try again later.");
+      return;
+    }
+    const topRules = allRules
+      .sort((a, b) => b.firedCount - a.firedCount)
+      .slice(0, 5);
+    const lines: string[] = [];
+    lines.push("*Admin Stats*");
+    lines.push("");
+    lines.push(`*Total users*: ${totalUsers}`);
+    lines.push(`*Active users \\(30d\\)*: ${activeUsers}`);
+    lines.push("");
+    if (topRules.length > 0) {
+      lines.push("*Top\\-fired alert rules*:");
+      for (let i = 0; i < topRules.length; i++) {
+        const r = topRules[i];
+        lines.push(`${i + 1}\\. ${formatAlertDescription(r).replace(/([_*[\]()~`>#+\-=|{}.!])/g, "\\$1")} — ${r.firedCount} fires`);
+      }
+    } else {
+      lines.push("No alert rules configured yet.");
+    }
+    await ctx.reply(lines.join("\n"), { parse_mode: "MarkdownV2" });
   });
 
   bot.on("callback_query:data", async (ctx) => {

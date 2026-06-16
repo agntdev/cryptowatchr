@@ -11,6 +11,7 @@ export interface AlertRule {
   percent?: number;
   timeframeMinutes?: number;
   createdAt: string;
+  firedCount: number;
 }
 
 export interface WatchlistEntry {
@@ -44,6 +45,10 @@ export interface PersistentStore {
   getMorningSummary(userId: number): Promise<MorningSummary | null>;
   setMorningSummary(userId: number, time: string): Promise<void>;
   deleteMorningSummary(userId: number): Promise<void>;
+  getAllAlertRules(): Promise<AlertRule[]>;
+  getUserCount(): Promise<number>;
+  getActiveUserCount(since: Date): Promise<number>;
+  recordUserActivity(userId: number): Promise<void>;
 }
 
 function createRedisClient(url: string) {
@@ -56,6 +61,8 @@ function createRedisClient(url: string) {
 const PREFIX = "cryptowatchr:";
 const RULES_KEY = (userId: number) => `${PREFIX}alert:rules:${userId}`;
 const WATCHLIST_KEY = (userId: number) => `${PREFIX}watchlist:${userId}`;
+const ALL_ALERT_RULES_KEY = `${PREFIX}alert:all`;
+const USERS_KEY = `${PREFIX}users`;
 
 class RedisStore implements PersistentStore {
   #client: ReturnType<typeof createRedisClient>;
@@ -68,6 +75,8 @@ class RedisStore implements PersistentStore {
     const key = `${PREFIX}alert:${rule.userId}:${rule.id}`;
     await this.#client.set(key, JSON.stringify(rule));
     await this.#client.sadd(RULES_KEY(rule.userId), rule.id);
+    await this.#client.sadd(ALL_ALERT_RULES_KEY, `${rule.userId}:${rule.id}`);
+    await this.#client.zadd(USERS_KEY, Date.now(), String(rule.userId));
   }
 
   async getAlertRules(userId: number): Promise<AlertRule[]> {
@@ -84,6 +93,7 @@ class RedisStore implements PersistentStore {
     const key = `${PREFIX}alert:${userId}:${ruleId}`;
     await this.#client.del(key);
     await this.#client.srem(RULES_KEY(userId), ruleId);
+    await this.#client.srem(ALL_ALERT_RULES_KEY, `${userId}:${ruleId}`);
   }
 
   async getQuietHours(userId: number): Promise<QuietHours | null> {
@@ -139,6 +149,31 @@ class RedisStore implements PersistentStore {
     const exists = await this.#client.hexists(WATCHLIST_KEY(userId), ticker);
     return exists === 1;
   }
+
+  async getAllAlertRules(): Promise<AlertRule[]> {
+    const entries = await this.#client.smembers(ALL_ALERT_RULES_KEY);
+    if (entries.length === 0) return [];
+    const keys = entries.map((e: string) => {
+      const [userId, ruleId] = e.split(":");
+      return `${PREFIX}alert:${userId}:${ruleId}`;
+    });
+    const results = await Promise.all(keys.map((k: string) => this.#client.get(k)));
+    return results
+      .filter((r): r is string => r !== null)
+      .map((r) => JSON.parse(r) as AlertRule);
+  }
+
+  async getUserCount(): Promise<number> {
+    return this.#client.zcard(USERS_KEY);
+  }
+
+  async getActiveUserCount(since: Date): Promise<number> {
+    return this.#client.zcount(USERS_KEY, since.getTime(), "+inf");
+  }
+
+  async recordUserActivity(userId: number): Promise<void> {
+    await this.#client.zadd(USERS_KEY, Date.now(), String(userId));
+  }
 }
 
 class MemoryStore implements PersistentStore {
@@ -147,6 +182,7 @@ class MemoryStore implements PersistentStore {
   #quietHours = new Map<number, QuietHours>();
   #morningSummary = new Map<number, MorningSummary>();
   #watchlist = new Map<number, Map<string, WatchlistEntry>>();
+  #users = new Map<number, number>();
 
   async createAlertRule(rule: AlertRule): Promise<void> {
     this.#rules.set(rule.id, rule);
@@ -156,6 +192,7 @@ class MemoryStore implements PersistentStore {
       this.#userRules.set(rule.userId, set);
     }
     set.add(rule.id);
+    this.#users.set(rule.userId, Date.now());
   }
 
   async getAlertRules(userId: number): Promise<AlertRule[]> {
@@ -215,6 +252,27 @@ class MemoryStore implements PersistentStore {
   async isInWatchlist(userId: number, ticker: string): Promise<boolean> {
     return this.#watchlist.get(userId)?.has(ticker) ?? false;
   }
+
+  async getAllAlertRules(): Promise<AlertRule[]> {
+    return [...this.#rules.values()];
+  }
+
+  async getUserCount(): Promise<number> {
+    return this.#users.size;
+  }
+
+  async getActiveUserCount(since: Date): Promise<number> {
+    const cutoff = since.getTime();
+    let count = 0;
+    for (const ts of this.#users.values()) {
+      if (ts >= cutoff) count++;
+    }
+    return count;
+  }
+
+  async recordUserActivity(userId: number): Promise<void> {
+    this.#users.set(userId, Date.now());
+  }
 }
 
 export function createStore(): PersistentStore {
@@ -238,6 +296,7 @@ export function newAlertRule(
     direction,
     price,
     createdAt: new Date().toISOString(),
+    firedCount: 0,
   };
 }
 
@@ -255,5 +314,6 @@ export function newPercentAlertRule(
     percent,
     timeframeMinutes,
     createdAt: new Date().toISOString(),
+    firedCount: 0,
   };
 }

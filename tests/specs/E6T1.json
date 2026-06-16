@@ -1,0 +1,11 @@
+[
+  {
+    "name": "/admin_stats denied for non-owner",
+    "steps": [
+      {
+        "send": { "text": "/admin_stats" },
+        "expect": []
+      }
+    ]
+  }
+]
