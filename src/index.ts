@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { createBot, menuKeyboard, inlineKeyboard } from "@agntdev/bot-toolkit";
 import { createStore, newAlertRule, newPercentAlertRule, type AlertRule, type WatchlistEntry } from "./store.js";
+import { startPoller } from "./poller.js";
 
 export interface Session {
   initializedAt: string;
@@ -592,8 +593,7 @@ function clearAlertSession(session: Session) {
   session.alertPctTimeframe = undefined;
 }
 
-export function makeBot(token = process.env.BOT_TOKEN ?? "test:cryptowatchr") {
-  const store = createStore();
+export function makeBot(token = process.env.BOT_TOKEN ?? "test:cryptowatchr", store: ReturnType<typeof createStore> = createStore()) {
   const bot = createBot<Session>(token, {
     initial: () => ({ initializedAt: new Date(0).toISOString() }),
     onError: async (err) => {
@@ -1512,7 +1512,10 @@ async function main() {
     process.exit(1);
   }
 
-  const bot = makeBot(token);
+  const store = createStore();
+  startPoller(store);
+
+  const bot = makeBot(token, store);
   await bot.start();
 }
 

@@ -25,6 +25,12 @@ export interface QuietHours {
   end: string;
 }
 
+export interface PriceSnapshot {
+  coinId: string;
+  priceUsd: number;
+  fetchedAt: string;
+}
+
 export interface PersistentStore {
   createAlertRule(rule: AlertRule): Promise<void>;
   getAlertRules(userId: number): Promise<AlertRule[]>;
@@ -36,6 +42,9 @@ export interface PersistentStore {
   getWatchlist(userId: number): Promise<WatchlistEntry[]>;
   removeFromWatchlist(userId: number, ticker: string): Promise<void>;
   isInWatchlist(userId: number, ticker: string): Promise<boolean>;
+  savePriceSnapshot(coinId: string, priceUsd: number): Promise<void>;
+  getLatestPriceSnapshots(coinIds: string[]): Promise<Map<string, PriceSnapshot>>;
+  getAllTrackedCoinIds(): Promise<string[]>;
 }
 
 function createRedisClient(url: string) {
@@ -114,6 +123,40 @@ class RedisStore implements PersistentStore {
     const exists = await this.#client.hexists(WATCHLIST_KEY(userId), ticker);
     return exists === 1;
   }
+
+  async savePriceSnapshot(coinId: string, priceUsd: number): Promise<void> {
+    const snapshot: PriceSnapshot = {
+      coinId,
+      priceUsd,
+      fetchedAt: new Date().toISOString(),
+    };
+    const ts = Date.now();
+    const member = JSON.stringify(snapshot);
+    const key = `${PREFIX}prices:${coinId}`;
+    await this.#client.zadd(key, ts, member);
+    await this.#client.sadd(`${PREFIX}tracked_coins`, coinId);
+  }
+
+  async getLatestPriceSnapshots(coinIds: string[]): Promise<Map<string, PriceSnapshot>> {
+    const result = new Map<string, PriceSnapshot>();
+    if (coinIds.length === 0) return result;
+    const results = await Promise.all(
+      coinIds.map(async (coinId) => {
+        const key = `${PREFIX}prices:${coinId}`;
+        const members = await this.#client.zrevrange(key, 0, 0);
+        const snapshot = members.length > 0 ? (JSON.parse(members[0]) as PriceSnapshot) : null;
+        return { coinId, snapshot };
+      }),
+    );
+    for (const { coinId, snapshot } of results) {
+      if (snapshot) result.set(coinId, snapshot);
+    }
+    return result;
+  }
+
+  async getAllTrackedCoinIds(): Promise<string[]> {
+    return await this.#client.smembers(`${PREFIX}tracked_coins`);
+  }
 }
 
 class MemoryStore implements PersistentStore {
@@ -121,6 +164,8 @@ class MemoryStore implements PersistentStore {
   #userRules = new Map<number, Set<string>>();
   #quietHours = new Map<number, QuietHours>();
   #watchlist = new Map<number, Map<string, WatchlistEntry>>();
+  #prices = new Map<string, PriceSnapshot[]>();
+  #trackedCoins = new Set<string>();
 
   async createAlertRule(rule: AlertRule): Promise<void> {
     this.#rules.set(rule.id, rule);
@@ -176,6 +221,36 @@ class MemoryStore implements PersistentStore {
 
   async isInWatchlist(userId: number, ticker: string): Promise<boolean> {
     return this.#watchlist.get(userId)?.has(ticker) ?? false;
+  }
+
+  async savePriceSnapshot(coinId: string, priceUsd: number): Promise<void> {
+    const snapshot: PriceSnapshot = {
+      coinId,
+      priceUsd,
+      fetchedAt: new Date().toISOString(),
+    };
+    let snapshots = this.#prices.get(coinId);
+    if (!snapshots) {
+      snapshots = [];
+      this.#prices.set(coinId, snapshots);
+    }
+    snapshots.push(snapshot);
+    this.#trackedCoins.add(coinId);
+  }
+
+  async getLatestPriceSnapshots(coinIds: string[]): Promise<Map<string, PriceSnapshot>> {
+    const result = new Map<string, PriceSnapshot>();
+    for (const coinId of coinIds) {
+      const snapshots = this.#prices.get(coinId);
+      if (snapshots && snapshots.length > 0) {
+        result.set(coinId, snapshots[snapshots.length - 1]);
+      }
+    }
+    return result;
+  }
+
+  async getAllTrackedCoinIds(): Promise<string[]> {
+    return [...this.#trackedCoins];
   }
 }
 
