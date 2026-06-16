@@ -1,0 +1,250 @@
+[
+  {
+    "name": "Remove one of multiple coins via /list shows remaining coins",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:add", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "watchlist:coin:BTC", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:add", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "watchlist:coin:ETH", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "/list" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Your watchlist:\n\u2022 BTC\n\u2022 ETH\n\nTap Remove to take a coin off your list.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [{ "text": "Remove BTC", "callback_data": "watchlist:remove:BTC" }],
+                  [{ "text": "Remove ETH", "callback_data": "watchlist:remove:ETH" }],
+                  [{ "text": "Back to menu", "callback_data": "menu:back" }]
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "send": { "callback": "watchlist:remove:BTC" },
+        "expect": [
+          {
+            "method": "answerCallbackQuery",
+            "payload": { "text": "BTC removed from watchlist." }
+          },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Your watchlist:\n\u2022 ETH\n\nTap Remove to take a coin off your list.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [{ "text": "Remove ETH", "callback_data": "watchlist:remove:ETH" }],
+                  [{ "text": "Back to menu", "callback_data": "menu:back" }]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Remove coin via My Watchlist menu leads to empty state",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:add", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "watchlist:coin:TON", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:watchlist", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Your watchlist:\n\u2022 TON\n\nTap Remove to take a coin off your list.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [{ "text": "Remove TON", "callback_data": "watchlist:remove:TON" }],
+                  [{ "text": "Back to menu", "callback_data": "menu:back" }]
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "send": { "callback": "watchlist:remove:TON", "messageId": 1 },
+        "expect": [
+          {
+            "method": "answerCallbackQuery",
+            "payload": { "text": "TON removed from watchlist." }
+          },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Your watchlist is empty.\n\nUse the Add Coin menu or type a ticker to start building your watchlist.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "Add Coin", "callback_data": "menu:add" },
+                    { "text": "My Watchlist", "callback_data": "menu:watchlist" }
+                  ],
+                  [
+                    { "text": "Create Alert", "callback_data": "menu:alerts" },
+                    { "text": "Price Check", "callback_data": "menu:price" }
+                  ],
+                  [
+                    { "text": "Settings", "callback_data": "menu:settings" },
+                    { "text": "Help", "callback_data": "menu:help" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Remove all coins one by one leaves empty watchlist",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:add", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "watchlist:coin:BTC", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:add", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "watchlist:coin:ETH", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "/list" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "watchlist:remove:BTC" },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "watchlist:remove:ETH" },
+        "expect": [
+          {
+            "method": "answerCallbackQuery",
+            "payload": { "text": "ETH removed from watchlist." }
+          },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Your watchlist is empty.\n\nUse the Add Coin menu or type a ticker to start building your watchlist.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "Add Coin", "callback_data": "menu:add" },
+                    { "text": "My Watchlist", "callback_data": "menu:watchlist" }
+                  ],
+                  [
+                    { "text": "Create Alert", "callback_data": "menu:alerts" },
+                    { "text": "Price Check", "callback_data": "menu:price" }
+                  ],
+                  [
+                    { "text": "Settings", "callback_data": "menu:settings" },
+                    { "text": "Help", "callback_data": "menu:help" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+]
