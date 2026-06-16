@@ -5,8 +5,15 @@
       {
         "send": { "text": "/start" },
         "expect": [
+          { "method": "sendMessage" }
+        ]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
           {
-            "method": "sendMessage",
+            "method": "editMessageText",
             "payload": {
               "text": "Welcome to CryptoWatchr.\n\nTrack coins, create price alerts, check the latest prices, and tune your quiet hours from the menu below.",
               "reply_markup": {

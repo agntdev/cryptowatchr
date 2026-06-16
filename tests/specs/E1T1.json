@@ -45,9 +45,10 @@
           {
             "method": "editMessageText",
             "payload": {
-              "text": "Timezone set to UTC+3.\n\nYour default settings:\n\u2022 Quiet hours: 22:00\u201307:00 (alerts suppressed while you sleep)\n\u2022 Alert cooldown: 1 hour (no repeat alerts for the same rule)\n\nYou can change these anytime in Settings.",
+              "text": "Timezone set to UTC+3.\n\nYour default settings:\n\u2022 Quiet hours: 22:00\u201307:00 (alerts suppressed while you sleep)\n\u2022 Alert cooldown: 1 hour (no repeat alerts for the same rule)\n\nUse the button below to customize quiet hours, or continue to the menu.",
               "reply_markup": {
                 "inline_keyboard": [
+                  [{ "text": "Customize quiet hours", "callback_data": "onboard:quiet" }],
                   [{ "text": "Continue to menu", "callback_data": "onboard:done" }]
                 ]
               }
@@ -135,9 +136,10 @@
           {
             "method": "sendMessage",
             "payload": {
-              "text": "Timezone set to UTC+5.\n\nYour default settings:\n\u2022 Quiet hours: 22:00\u201307:00 (alerts suppressed while you sleep)\n\u2022 Alert cooldown: 1 hour (no repeat alerts for the same rule)\n\nYou can change these anytime in Settings.",
+              "text": "Timezone set to UTC+5.\n\nYour default settings:\n\u2022 Quiet hours: 22:00\u201307:00 (alerts suppressed while you sleep)\n\u2022 Alert cooldown: 1 hour (no repeat alerts for the same rule)\n\nUse the button below to customize quiet hours, or continue to the menu.",
               "reply_markup": {
                 "inline_keyboard": [
+                  [{ "text": "Customize quiet hours", "callback_data": "onboard:quiet" }],
                   [{ "text": "Continue to menu", "callback_data": "onboard:done" }]
                 ]
               }

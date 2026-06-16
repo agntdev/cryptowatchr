@@ -1,0 +1,321 @@
+[
+  {
+    "name": "customize quiet hours shows start time keyboard",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:tz:UTC+3", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "onboard:quiet", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Let's set up your quiet hours \u2014 alerts will be suppressed during this window.\n\nWhat time should quiet hours *start*?\nYou can also type a custom time like 23:30.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "20:00", "callback_data": "quiet:start:20:00" },
+                    { "text": "21:00", "callback_data": "quiet:start:21:00" }
+                  ],
+                  [
+                    { "text": "22:00", "callback_data": "quiet:start:22:00" },
+                    { "text": "23:00", "callback_data": "quiet:start:23:00" }
+                  ],
+                  [
+                    { "text": "Use default (22:00)", "callback_data": "quiet:start:default" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "selecting quiet start shows quiet end keyboard",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:tz:UTC+3", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "onboard:quiet", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "quiet:start:22:00", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "What time should quiet hours *end*?",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "06:00", "callback_data": "quiet:end:06:00" },
+                    { "text": "07:00", "callback_data": "quiet:end:07:00" }
+                  ],
+                  [
+                    { "text": "08:00", "callback_data": "quiet:end:08:00" },
+                    { "text": "09:00", "callback_data": "quiet:end:09:00" }
+                  ],
+                  [
+                    { "text": "Use default (07:00)", "callback_data": "quiet:end:default" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "completing quiet hours setup shows summary and main menu",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:tz:UTC+3", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "onboard:quiet", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "quiet:start:23:00", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "quiet:end:08:00", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Quiet hours set!\n\n\u2022 Start: 23:00\n\u2022 End: 08:00\n\nAlerts will be suppressed during this window.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "Add Coin", "callback_data": "menu:add" },
+                    { "text": "My Watchlist", "callback_data": "menu:watchlist" }
+                  ],
+                  [
+                    { "text": "Create Alert", "callback_data": "menu:alerts" },
+                    { "text": "Price Check", "callback_data": "menu:price" }
+                  ],
+                  [
+                    { "text": "Settings", "callback_data": "menu:settings" },
+                    { "text": "Help", "callback_data": "menu:help" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "using default quiet hours buttons",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:tz:UTC+0", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "onboard:quiet", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "quiet:start:default", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "quiet:end:default", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Quiet hours set!\n\n\u2022 Start: 22:00\n\u2022 End: 07:00\n\nAlerts will be suppressed during this window."
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "typing a custom quiet start time",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:tz:UTC+3", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "onboard:quiet", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "23:30" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "What time should quiet hours *end*?",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "06:00", "callback_data": "quiet:end:06:00" },
+                    { "text": "07:00", "callback_data": "quiet:end:07:00" }
+                  ],
+                  [
+                    { "text": "08:00", "callback_data": "quiet:end:08:00" },
+                    { "text": "09:00", "callback_data": "quiet:end:09:00" }
+                  ],
+                  [
+                    { "text": "Use default (07:00)", "callback_data": "quiet:end:default" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "invalid quiet start time shows error",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:tz:UTC+3", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "onboard:quiet", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "not a time" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Please enter a time in HH:MM format (e.g. 22:00 or 23:30).",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "20:00", "callback_data": "quiet:start:20:00" },
+                    { "text": "21:00", "callback_data": "quiet:start:21:00" }
+                  ],
+                  [
+                    { "text": "22:00", "callback_data": "quiet:start:22:00" },
+                    { "text": "23:00", "callback_data": "quiet:start:23:00" }
+                  ],
+                  [
+                    { "text": "Use default (22:00)", "callback_data": "quiet:start:default" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "continue to menu sets default quiet hours",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:tz:UTC-5", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "onboard:done", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Welcome to CryptoWatchr.\n\nTrack coins, create price alerts, check the latest prices, and tune your quiet hours from the menu below."
+            }
+          }
+        ]
+      }
+    ]
+  }
+]

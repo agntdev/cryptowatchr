@@ -3,8 +3,10 @@ import { createBot, menuKeyboard, inlineKeyboard } from "@agntdev/bot-toolkit";
 
 export interface Session {
   initializedAt: string;
-  onboardingStep?: "timezone" | "confirm";
+  onboardingStep?: "timezone" | "confirm" | "quietStart" | "quietEnd";
   timezone?: string;
+  quietStart?: string;
+  quietEnd?: string;
 }
 
 const WELCOME_TEXT = [
@@ -72,7 +74,7 @@ function confirmText(tz: string, detected?: boolean) {
     `\u2022 Quiet hours: ${DEFAULT_QUIET_START}\u2013${DEFAULT_QUIET_END} (alerts suppressed while you sleep)`,
     `\u2022 Alert cooldown: ${DEFAULT_COOLDOWN_HOURS} hour (no repeat alerts for the same rule)`,
     "",
-    "You can change these anytime in Settings.",
+    "Use the button below to customize quiet hours, or continue to the menu.",
   ].join("\n");
 }
 
@@ -134,8 +136,63 @@ function timezoneKeyboard() {
 
 function confirmKeyboard() {
   return inlineKeyboard([
+    [{ text: "Customize quiet hours", callback_data: "onboard:quiet" }],
     [{ text: "Continue to menu", callback_data: "onboard:done" }],
   ]);
+}
+
+const QUIET_START_TEXT = [
+  "Let's set up your quiet hours — alerts will be suppressed during this window.",
+  "",
+  "What time should quiet hours *start*?",
+  "You can also type a custom time like 23:30.",
+].join("\n");
+
+const QUIET_END_TEXT = [
+  "What time should quiet hours *end*?",
+].join("\n");
+
+function quietStartKeyboard() {
+  return inlineKeyboard([
+    [
+      { text: "20:00", callback_data: "quiet:start:20:00" },
+      { text: "21:00", callback_data: "quiet:start:21:00" },
+    ],
+    [
+      { text: "22:00", callback_data: "quiet:start:22:00" },
+      { text: "23:00", callback_data: "quiet:start:23:00" },
+    ],
+    [
+      { text: "Use default (22:00)", callback_data: "quiet:start:default" },
+    ],
+  ]);
+}
+
+function quietEndKeyboard() {
+  return inlineKeyboard([
+    [
+      { text: "06:00", callback_data: "quiet:end:06:00" },
+      { text: "07:00", callback_data: "quiet:end:07:00" },
+    ],
+    [
+      { text: "08:00", callback_data: "quiet:end:08:00" },
+      { text: "09:00", callback_data: "quiet:end:09:00" },
+    ],
+    [
+      { text: "Use default (07:00)", callback_data: "quiet:end:default" },
+    ],
+  ]);
+}
+
+function quietHoursSummary(start: string, end: string) {
+  return [
+    "Quiet hours set!",
+    "",
+    `\u2022 Start: ${start}`,
+    `\u2022 End: ${end}`,
+    "",
+    "Alerts will be suppressed during this window.",
+  ].join("\n");
 }
 
 export function makeBot(token = process.env.BOT_TOKEN ?? "test:cryptowatchr") {
@@ -178,15 +235,46 @@ export function makeBot(token = process.env.BOT_TOKEN ?? "test:cryptowatchr") {
     if (data === "onboard:skip") {
       ctx.session.onboardingStep = undefined;
       ctx.session.timezone = detectTimezone(ctx.from?.language_code);
+      ctx.session.quietStart = DEFAULT_QUIET_START;
+      ctx.session.quietEnd = DEFAULT_QUIET_END;
       await ctx.answerCallbackQuery();
       await ctx.editMessageText(MAIN_MENU_TEXT, { reply_markup: mainMenu() });
       return;
     }
 
+    if (data === "onboard:quiet") {
+      ctx.session.onboardingStep = "quietStart";
+      await ctx.answerCallbackQuery();
+      await ctx.editMessageText(QUIET_START_TEXT, { parse_mode: "Markdown", reply_markup: quietStartKeyboard() });
+      return;
+    }
+
     if (data === "onboard:done") {
       ctx.session.onboardingStep = undefined;
+      ctx.session.quietStart = DEFAULT_QUIET_START;
+      ctx.session.quietEnd = DEFAULT_QUIET_END;
       await ctx.answerCallbackQuery();
       await ctx.editMessageText(MAIN_MENU_TEXT, { reply_markup: mainMenu() });
+      return;
+    }
+
+    if (data.startsWith("quiet:start:")) {
+      const val = data.slice("quiet:start:".length);
+      const start = val === "default" ? DEFAULT_QUIET_START : val;
+      ctx.session.quietStart = start;
+      ctx.session.onboardingStep = "quietEnd";
+      await ctx.answerCallbackQuery();
+      await ctx.editMessageText(QUIET_END_TEXT, { parse_mode: "Markdown", reply_markup: quietEndKeyboard() });
+      return;
+    }
+
+    if (data.startsWith("quiet:end:")) {
+      const val = data.slice("quiet:end:".length);
+      const end = val === "default" ? DEFAULT_QUIET_END : val;
+      ctx.session.quietEnd = end;
+      ctx.session.onboardingStep = undefined;
+      await ctx.answerCallbackQuery();
+      await ctx.editMessageText(quietHoursSummary(ctx.session.quietStart!, end), { reply_markup: mainMenu() });
       return;
     }
 
@@ -213,6 +301,30 @@ export function makeBot(token = process.env.BOT_TOKEN ?? "test:cryptowatchr") {
         ctx.session.timezone = tz;
         ctx.session.onboardingStep = "confirm";
         await ctx.reply(confirmText(tz), { reply_markup: confirmKeyboard() });
+      }
+      return;
+    }
+
+    if (ctx.session.onboardingStep === "quietStart") {
+      const text = ctx.message?.text?.trim();
+      if (text && /^\d{1,2}:\d{2}$/.test(text)) {
+        ctx.session.quietStart = text;
+        ctx.session.onboardingStep = "quietEnd";
+        await ctx.reply(QUIET_END_TEXT, { parse_mode: "Markdown", reply_markup: quietEndKeyboard() });
+      } else {
+        await ctx.reply("Please enter a time in HH:MM format (e.g. 22:00 or 23:30).", { reply_markup: quietStartKeyboard() });
+      }
+      return;
+    }
+
+    if (ctx.session.onboardingStep === "quietEnd") {
+      const text = ctx.message?.text?.trim();
+      if (text && /^\d{1,2}:\d{2}$/.test(text)) {
+        ctx.session.quietEnd = text;
+        ctx.session.onboardingStep = undefined;
+        await ctx.reply(quietHoursSummary(ctx.session.quietStart!, text), { reply_markup: mainMenu() });
+      } else {
+        await ctx.reply("Please enter a time in HH:MM format (e.g. 07:00 or 08:30).", { reply_markup: quietEndKeyboard() });
       }
       return;
     }
