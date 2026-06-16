@@ -1,0 +1,389 @@
+[
+  {
+    "name": "morning summary persists across multiple settings opens",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:settings", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "settings:summary:enable", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "08:30" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Morning summary is now on at 08:30.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "Add Coin", "callback_data": "menu:add" },
+                    { "text": "My Watchlist", "callback_data": "menu:watchlist" }
+                  ],
+                  [
+                    { "text": "Create Alert", "callback_data": "menu:alerts" },
+                    { "text": "My Alerts", "callback_data": "menu:myalerts" }
+                  ],
+                  [
+                    { "text": "Price Check", "callback_data": "menu:price" },
+                    { "text": "Settings", "callback_data": "menu:settings" }
+                  ],
+                  [
+                    { "text": "Help", "callback_data": "menu:help" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "send": { "callback": "menu:settings", "messageId": 2 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "*Settings*\n\n\u2022 Morning Summary: On at 08:30\n\nMorning summary sends you a daily report of your watched coins at your chosen time.",
+              "parse_mode": "Markdown",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [{ "text": "Change Summary Time", "callback_data": "settings:summary:time" }],
+                  [{ "text": "Turn Off Summary", "callback_data": "settings:summary:disable" }],
+                  [{ "text": "Back to menu", "callback_data": "menu:back" }]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "morning summary persists after /start and re-onboarding",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:settings", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "settings:summary:enable", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "09:00" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 3 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:settings", "messageId": 3 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "*Settings*\n\n\u2022 Morning Summary: On at 09:00\n\nMorning summary sends you a daily report of your watched coins at your chosen time.",
+              "parse_mode": "Markdown",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [{ "text": "Change Summary Time", "callback_data": "settings:summary:time" }],
+                  [{ "text": "Turn Off Summary", "callback_data": "settings:summary:disable" }],
+                  [{ "text": "Back to menu", "callback_data": "menu:back" }]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "timezone is persisted across onboarding confirmation",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:tz:UTC+3", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Timezone set to UTC+3.\n\nYour default settings:\n\u2022 Quiet hours: 22:00\u201307:00 (alerts suppressed while you sleep)\n\u2022 Alert cooldown: 1 hour (no repeat alerts for the same rule)\n\nYou can change these anytime in Settings.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [{ "text": "Set Quiet Hours", "callback_data": "onboard:qhours" }],
+                  [{ "text": "Continue to menu", "callback_data": "onboard:done" }]
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "send": { "callback": "onboard:done", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Welcome to CryptoWatchr.\n\nTrack coins, create price alerts, check the latest prices, and tune your quiet hours from the menu below.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "Add Coin", "callback_data": "menu:add" },
+                    { "text": "My Watchlist", "callback_data": "menu:watchlist" }
+                  ],
+                  [
+                    { "text": "Create Alert", "callback_data": "menu:alerts" },
+                    { "text": "My Alerts", "callback_data": "menu:myalerts" }
+                  ],
+                  [
+                    { "text": "Price Check", "callback_data": "menu:price" },
+                    { "text": "Settings", "callback_data": "menu:settings" }
+                  ],
+                  [
+                    { "text": "Help", "callback_data": "menu:help" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "send": { "callback": "menu:settings", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "*Settings*\n\n\u2022 Morning Summary: Off\n\nMorning summary sends you a daily report of your watched coins at your chosen time.",
+              "parse_mode": "Markdown",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [{ "text": "Turn On Summary", "callback_data": "settings:summary:enable" }],
+                  [{ "text": "Back to menu", "callback_data": "menu:back" }]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "custom quiet hours are persisted during onboarding",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:tz:UTC+5", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "onboard:qhours", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "23:00" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "What time should your quiet hours end? (HH:MM, 24-hour format)\n\nExample: 07:00",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [{ "text": "Keep defaults", "callback_data": "onboard:qhours:skip" }]
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "send": { "text": "06:00" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Timezone set to UTC+5.\n\nYour settings:\n\u2022 Quiet hours: 23:00\u201306:00 (alerts suppressed while you sleep)\n\u2022 Alert cooldown: 1 hour (no repeat alerts for the same rule)\n\nYou can change these anytime in Settings.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [{ "text": "Set Quiet Hours", "callback_data": "onboard:qhours" }],
+                  [{ "text": "Continue to menu", "callback_data": "onboard:done" }]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "settings show summary off after onboarding with timezone only",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:tz:UTC-5", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "onboard:done", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:settings", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "*Settings*\n\n\u2022 Morning Summary: Off\n\nMorning summary sends you a daily report of your watched coins at your chosen time.",
+              "parse_mode": "Markdown",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [{ "text": "Turn On Summary", "callback_data": "settings:summary:enable" }],
+                  [{ "text": "Back to menu", "callback_data": "menu:back" }]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "disable summary persists across settings opens",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:settings", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "settings:summary:enable", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "07:00" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "menu:settings", "messageId": 2 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "settings:summary:disable", "messageId": 2 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:settings", "messageId": 2 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "*Settings*\n\n\u2022 Morning Summary: Off\n\nMorning summary sends you a daily report of your watched coins at your chosen time.",
+              "parse_mode": "Markdown",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [{ "text": "Turn On Summary", "callback_data": "settings:summary:enable" }],
+                  [{ "text": "Back to menu", "callback_data": "menu:back" }]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+]
