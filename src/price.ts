@@ -24,6 +24,7 @@ export class PriceFetchError extends Error {
 }
 
 const COINGECKO_BASE = "https://api.coingecko.com/api/v3";
+const COINGECKO_API_KEY = process.env.COINGECKO_API_KEY;
 
 export async function fetchPrices(coinIds: string[]): Promise<CoinGeckoPriceResponse> {
   if (coinIds.length === 0) return {};
@@ -31,9 +32,14 @@ export async function fetchPrices(coinIds: string[]): Promise<CoinGeckoPriceResp
   const ids = coinIds.join(",");
   const url = `${COINGECKO_BASE}/simple/price?ids=${encodeURIComponent(ids)}&vs_currencies=usd&include_24hr_change=true&include_last_updated_at=true`;
 
+  const headers: Record<string, string> = {};
+  if (COINGECKO_API_KEY) {
+    headers["x-cg-pro-api-key"] = COINGECKO_API_KEY;
+  }
+
   let response: Response;
   try {
-    response = await fetch(url);
+    response = await fetch(url, { headers });
   } catch (err) {
     throw new PriceFetchError("Network error reaching the price service", "network");
   }
