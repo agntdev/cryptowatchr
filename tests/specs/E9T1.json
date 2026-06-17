@@ -1,0 +1,141 @@
+[
+  {
+    "name": "/price with unknown ticker returns error",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "/price XYZ" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "\"XYZ\" is not a recognized ticker. Try a known ticker like BTC, ETH, or SOL.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "Add Coin", "callback_data": "menu:add" },
+                    { "text": "My Watchlist", "callback_data": "menu:watchlist" }
+                  ],
+                  [
+                    { "text": "Create Alert", "callback_data": "menu:alerts" },
+                    { "text": "My Alerts", "callback_data": "menu:myalerts" }
+                  ],
+                  [
+                    { "text": "Price Check", "callback_data": "menu:price" },
+                    { "text": "Settings", "callback_data": "menu:settings" }
+                  ],
+                  [
+                    { "text": "Help", "callback_data": "menu:help" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "/price with no args and empty watchlist shows empty message",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "/price" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Your watchlist is empty.\n\nUse the Add Coin menu or type a ticker to start building your watchlist.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "Add Coin", "callback_data": "menu:add" },
+                    { "text": "My Watchlist", "callback_data": "menu:watchlist" }
+                  ],
+                  [
+                    { "text": "Create Alert", "callback_data": "menu:alerts" },
+                    { "text": "My Alerts", "callback_data": "menu:myalerts" }
+                  ],
+                  [
+                    { "text": "Price Check", "callback_data": "menu:price" },
+                    { "text": "Settings", "callback_data": "menu:settings" }
+                  ],
+                  [
+                    { "text": "Help", "callback_data": "menu:help" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Price Check menu button with empty watchlist shows empty message",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:price", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Your watchlist is empty.\n\nUse the Add Coin menu or type a ticker to start building your watchlist.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "Add Coin", "callback_data": "menu:add" },
+                    { "text": "My Watchlist", "callback_data": "menu:watchlist" }
+                  ],
+                  [
+                    { "text": "Create Alert", "callback_data": "menu:alerts" },
+                    { "text": "My Alerts", "callback_data": "menu:myalerts" }
+                  ],
+                  [
+                    { "text": "Price Check", "callback_data": "menu:price" },
+                    { "text": "Settings", "callback_data": "menu:settings" }
+                  ],
+                  [
+                    { "text": "Help", "callback_data": "menu:help" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+]
