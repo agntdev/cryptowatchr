@@ -1,0 +1,20 @@
+[
+  {
+    "name": "/admin_stats is silently ignored when OWNER_ID is not configured",
+    "steps": [
+      {
+        "send": { "text": "/admin_stats" },
+        "expect": []
+      }
+    ]
+  },
+  {
+    "name": "/admin_stats is silently ignored for non-owner user",
+    "steps": [
+      {
+        "send": { "text": "/admin_stats", "userId": 99999 },
+        "expect": []
+      }
+    ]
+  }
+]
