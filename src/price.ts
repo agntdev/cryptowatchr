@@ -34,7 +34,7 @@ const COINGECKO_API_KEY = process.env.COINGECKO_API_KEY;
 const CRYPTOCOMPARE_API_KEY = process.env.CRYPTOCOMPARE_API_KEY;
 const COINAPI_KEY = process.env.COINAPI_KEY;
 
-const COIN_ID_TO_TICKER: Record<string, string> = {
+export const COIN_ID_TO_TICKER: Record<string, string> = {
   "bitcoin": "BTC",
   "ethereum": "ETH",
   "the-open-network": "TON",
