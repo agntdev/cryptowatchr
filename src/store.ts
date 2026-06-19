@@ -59,6 +59,9 @@ export interface PersistentStore {
   getMorningSummary(userId: number): Promise<MorningSummary | null>;
   setMorningSummary(userId: number, time: string): Promise<void>;
   deleteMorningSummary(userId: number): Promise<void>;
+  getAllMorningSummaryConfigs(): Promise<Array<{ userId: number; time: string }>>;
+  getLastSummarySent(userId: number): Promise<number | null>;
+  recordSummarySent(userId: number): Promise<void>;
   getAllTrackedCoinIds(): Promise<string[]>;
   savePriceSnapshot(snapshot: PriceSnapshot): Promise<void>;
   getLatestPriceSnapshot(coinId: string): Promise<PriceSnapshot | null>;
@@ -165,6 +168,36 @@ class RedisStore implements PersistentStore {
   async deleteMorningSummary(userId: number): Promise<void> {
     const key = `${PREFIX}morning_summary:${userId}`;
     await this.#client.del(key);
+  }
+
+  async getAllMorningSummaryConfigs(): Promise<Array<{ userId: number; time: string }>> {
+    const configs: Array<{ userId: number; time: string }> = [];
+    let cursor = "0";
+    do {
+      const [nextCursor, keys] = await this.#client.scan(cursor, "MATCH", `${PREFIX}morning_summary:*`, "COUNT", 100);
+      cursor = nextCursor;
+      for (const key of keys) {
+        const raw = await this.#client.get(key);
+        if (!raw) continue;
+        const summary = JSON.parse(raw) as MorningSummary;
+        if (summary.enabled) {
+          const userId = Number(key.slice(`${PREFIX}morning_summary:`.length));
+          configs.push({ userId, time: summary.time });
+        }
+      }
+    } while (cursor !== "0");
+    return configs;
+  }
+
+  async getLastSummarySent(userId: number): Promise<number | null> {
+    const key = `${PREFIX}summary_sent:${userId}`;
+    const raw = await this.#client.get(key);
+    return raw ? Number(raw) : null;
+  }
+
+  async recordSummarySent(userId: number): Promise<void> {
+    const key = `${PREFIX}summary_sent:${userId}`;
+    await this.#client.set(key, String(Date.now()));
   }
 
   async getAllTrackedCoinIds(): Promise<string[]> {
@@ -368,6 +401,22 @@ class MemoryStore implements PersistentStore {
     this.#morningSummary.delete(userId);
   }
 
+  async getAllMorningSummaryConfigs(): Promise<Array<{ userId: number; time: string }>> {
+    return [...this.#morningSummary.entries()]
+      .filter(([, s]) => s.enabled)
+      .map(([userId, s]) => ({ userId, time: s.time }));
+  }
+
+  #summarySent = new Map<number, number>();
+
+  async getLastSummarySent(userId: number): Promise<number | null> {
+    return this.#summarySent.get(userId) ?? null;
+  }
+
+  async recordSummarySent(userId: number): Promise<void> {
+    this.#summarySent.set(userId, Date.now());
+  }
+
   async getAllTrackedCoinIds(): Promise<string[]> {
     const coinIds = new Set<string>();
     for (const map of this.#watchlist.values()) {
@@ -523,10 +572,12 @@ class PostgresStore implements PersistentStore {
         quiet_hours_end TEXT,
         morning_summary_enabled BOOLEAN DEFAULT false,
         morning_summary_time TEXT,
+        morning_summary_last_sent BIGINT,
         last_active_at BIGINT
       )
     `);
     await this.#pool.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS last_active_at BIGINT`);
+    await this.#pool.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS morning_summary_last_sent BIGINT`);
     await this.#pool.query(`
       CREATE TABLE IF NOT EXISTS alert_rules (
         id TEXT PRIMARY KEY,
@@ -644,6 +695,35 @@ class PostgresStore implements PersistentStore {
     await this.#pool.query(
       `UPDATE user_settings SET morning_summary_enabled = false, morning_summary_time = NULL WHERE user_id = $1`,
       [userId],
+    );
+  }
+
+  async getAllMorningSummaryConfigs(): Promise<Array<{ userId: number; time: string }>> {
+    const res = await this.#pool.query(
+      `SELECT user_id, morning_summary_time FROM user_settings WHERE morning_summary_enabled = true AND morning_summary_time IS NOT NULL`,
+    );
+    return res.rows.map((r: { user_id: number; morning_summary_time: string }) => ({
+      userId: Number(r.user_id),
+      time: r.morning_summary_time,
+    }));
+  }
+
+  async getLastSummarySent(userId: number): Promise<number | null> {
+    const res = await this.#pool.query(
+      `SELECT morning_summary_last_sent FROM user_settings WHERE user_id = $1`,
+      [userId],
+    );
+    if (res.rows.length === 0) return null;
+    const val = res.rows[0].morning_summary_last_sent;
+    return val != null ? Number(val) : null;
+  }
+
+  async recordSummarySent(userId: number): Promise<void> {
+    await this.#pool.query(
+      `INSERT INTO user_settings (user_id, morning_summary_last_sent)
+       VALUES ($1, $2)
+       ON CONFLICT (user_id) DO UPDATE SET morning_summary_last_sent = $2`,
+      [userId, Date.now()],
     );
   }
 
