@@ -1,3 +1,4 @@
+import { inlineKeyboard } from "@agntdev/bot-toolkit";
 import type { AlertRule, PriceSnapshot, PersistentStore, QuietHours } from "./store.js";
 import { coinIdForTicker } from "./bot.js";
 
@@ -58,40 +59,52 @@ function isInQuietHours(quietHours: QuietHours, timezone: string, now: Date): bo
   }
 }
 
+function formatPercentTimeframe(minutes: number): string {
+  if (minutes >= 60 && minutes % 60 === 0) {
+    const h = minutes / 60;
+    return h === 1 ? "1 hour" : `${h} hours`;
+  }
+  return `${minutes} minutes`;
+}
+
 export function formatAlertMessage(alert: TriggeredAlert): string {
-  const { rule, oldPrice, newPrice, absChange, pctChange } = alert;
+  const { rule, oldPrice, newPrice, pctChange } = alert;
   const ticker = rule.coin;
   const sign = pctChange >= 0 ? "+" : "";
 
   const fmtOld = `$${oldPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const fmtNew = `$${newPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const fmtAbs = `${sign}${Math.abs(absChange).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const fmtPct = `${sign}${pctChange.toFixed(2)}%`;
 
-  let ruleDesc: string;
+  const headline = `ALERT: ${ticker} moved — old: ${fmtOld} → new: ${fmtNew} (${fmtPct})`;
+
+  let typeLine: string;
   if (rule.type === "threshold") {
     const fmtPrice = rule.price!.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    ruleDesc = `${rule.coin} ${rule.direction} $${fmtPrice}`;
+    typeLine = `Type: Threshold · ${ticker} ${rule.direction} $${fmtPrice}`;
   } else {
     const fmtPercent = rule.percent!.toLocaleString("en-US", { maximumFractionDigits: 2 });
     const coinLabel = rule.coin === "any" ? "any coin in your watchlist" : rule.coin;
-    let timeframeLabel: string;
-    const mins = rule.timeframeMinutes!;
-    if (mins >= 60 && mins % 60 === 0) {
-      const h = mins / 60;
-      timeframeLabel = h === 1 ? "1 hour" : `${h} hours`;
-    } else {
-      timeframeLabel = `${mins} minutes`;
-    }
-    ruleDesc = `${coinLabel} moves more than ${fmtPercent}% in ${timeframeLabel}`;
+    typeLine = `Type: Percent move · ${coinLabel} > ${fmtPercent}% in ${formatPercentTimeframe(rule.timeframeMinutes!)}`;
   }
 
-  return [
-    `${ticker} Alert`,
-    `Old: ${fmtOld} \u2192 New: ${fmtNew}`,
-    `Change: $${fmtAbs} (${fmtPct})`,
-    `Rule: ${ruleDesc}`,
-  ].join("\n");
+  return [headline, typeLine].join("\n");
+}
+
+export function formatAlertKeyboard(ruleId: string) {
+  return inlineKeyboard([
+    [
+      { text: "View Alert", callback_data: `alert:view:${ruleId}` },
+      { text: "Pause Alert", callback_data: `alert:pause:${ruleId}` },
+    ],
+  ]);
+}
+
+export function formatAlertDelivery(alert: TriggeredAlert) {
+  return {
+    text: formatAlertMessage(alert),
+    reply_markup: formatAlertKeyboard(alert.rule.id),
+  };
 }
 
 export async function evaluateAlertRules(

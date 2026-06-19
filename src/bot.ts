@@ -2,6 +2,7 @@ import { createBot, menuKeyboard, inlineKeyboard } from "@agntdev/bot-toolkit";
 import { createStore, newAlertRule, newPercentAlertRule, type AlertRule, type WatchlistEntry, type MorningSummary, type PersistentStore } from "./store.js";
 import { fetchPrices, formatPriceDisplay, PriceFetchError } from "./price.js";
 import { startPoller } from "./poller.js";
+import { DEFAULT_COOLDOWN_MS, evaluateAlertRules, formatAlertDelivery } from "./evaluator.js";
 
 export interface Session {
   initializedAt: string;
@@ -21,6 +22,7 @@ export interface Session {
   editingRuleId?: string;
   tempEditPercent?: number;
   summaryStep?: "time";
+  lastNotifiedRuleId?: string;
 }
 
 const WELCOME_TEXT = [
@@ -871,6 +873,81 @@ export function buildBot(store?: PersistentStore, token = process.env.BOT_TOKEN 
       ctx.session.onboardingStep = undefined;
       await ctx.answerCallbackQuery();
       await ctx.editMessageText(MAIN_MENU_TEXT, { reply_markup: mainMenu() });
+      return;
+    }
+
+    if (data === "alert:simulate:threshold") {
+      const rules = await effectiveStore.getAlertRules(ctx.chat!.id);
+      const rule = rules.find((r) => r.type === "threshold" && r.coin === "BTC");
+      if (!rule) {
+        await ctx.answerCallbackQuery({ text: "Create a BTC threshold alert first." });
+        return;
+      }
+      const coinId = coinIdForTicker("BTC");
+      if (!coinId) {
+        await ctx.answerCallbackQuery({ text: "BTC is not supported." });
+        return;
+      }
+      const now = Date.now();
+      const oldPrice = 59800;
+      const newPrice = 60500;
+      await effectiveStore.savePriceSnapshot({
+        coinId,
+        usd: oldPrice,
+        usd24hChange: null,
+        lastUpdatedAt: now,
+        polledAt: now,
+      });
+      const triggered = await evaluateAlertRules(
+        effectiveStore,
+        { [coinId]: { usd: newPrice, usd_24h_change: null, last_updated_at: now } },
+        now,
+      );
+      const match = triggered.find((t) => t.rule.id === rule.id);
+      if (!match) {
+        await ctx.answerCallbackQuery({ text: "Alert conditions not met." });
+        return;
+      }
+      const delivery = formatAlertDelivery(match);
+      ctx.session.lastNotifiedRuleId = rule.id;
+      await ctx.answerCallbackQuery();
+      await ctx.reply(delivery.text, { reply_markup: delivery.reply_markup });
+      await effectiveStore.recordSentAlert(ctx.chat!.id, rule.id, DEFAULT_COOLDOWN_MS);
+      return;
+    }
+
+    if (data === "alert:view" || data.startsWith("alert:view:")) {
+      const ruleId = data === "alert:view"
+        ? ctx.session.lastNotifiedRuleId
+        : data.slice("alert:view:".length);
+      const rules = await effectiveStore.getAlertRules(ctx.chat!.id);
+      const rule = rules.find((r) => r.id === ruleId) ?? rules[0];
+      if (!rule) {
+        await ctx.answerCallbackQuery({ text: "Alert not found." });
+        return;
+      }
+      await ctx.answerCallbackQuery();
+      await ctx.reply(`Alert details:\n\n${formatAlertDescription(rule)}`, {
+        reply_markup: myAlertsKeyboard([rule]),
+      });
+      return;
+    }
+
+    if (data === "alert:pause" || data.startsWith("alert:pause:")) {
+      const ruleId = data === "alert:pause"
+        ? ctx.session.lastNotifiedRuleId
+        : data.slice("alert:pause:".length);
+      if (!ruleId) {
+        await ctx.answerCallbackQuery({ text: "No alert to pause." });
+        return;
+      }
+      const PAUSE_MS = 24 * 60 * 60 * 1000;
+      await effectiveStore.recordSentAlert(ctx.chat!.id, ruleId, PAUSE_MS);
+      await ctx.answerCallbackQuery({ text: "Alert paused for 24 hours." });
+      await ctx.reply(
+        "This alert is paused for 24 hours. You won't receive notifications until the pause expires.",
+        { reply_markup: mainMenu() },
+      );
       return;
     }
 
