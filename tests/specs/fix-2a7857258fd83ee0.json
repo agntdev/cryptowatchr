@@ -1,0 +1,168 @@
+[
+  {
+    "name": "threshold alert custom ticker rejects unknown coin",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Welcome to CryptoWatchr!\n\nTrack cryptocurrencies, create price alerts, check the latest prices, and tune your quiet hours \u2014 all from Telegram.\n\nLet\u2019s get you set up. What\u2019s your timezone?\nYou can also type a custom timezone like UTC+2 or America/New_York."
+            }
+          }
+        ]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          {
+            "method": "answerCallbackQuery"
+          },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Welcome to CryptoWatchr.\n\nTrack coins, create price alerts, check the latest prices, and tune your quiet hours from the menu below."
+            }
+          }
+        ]
+      },
+      {
+        "send": { "callback": "menu:alerts", "messageId": 1 },
+        "expect": [
+          {
+            "method": "answerCallbackQuery"
+          },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Choose the type of alert you want to create:"
+            }
+          }
+        ]
+      },
+      {
+        "send": { "callback": "alert:type:threshold", "messageId": 1 },
+        "expect": [
+          {
+            "method": "answerCallbackQuery"
+          },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Select a coin for your threshold alert:"
+            }
+          }
+        ]
+      },
+      {
+        "send": { "callback": "alert:coin:custom", "messageId": 1 },
+        "expect": [
+          {
+            "method": "answerCallbackQuery"
+          },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Enter the coin ticker (e.g. SOL, DOGE, ADA):"
+            }
+          }
+        ]
+      },
+      {
+        "send": { "text": "NONEXISTENT" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "\"NONEXISTENT\" is not a recognized ticker. Please enter a valid ticker like BTC, ETH, or SOL."
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "threshold alert custom ticker accepts known coin and proceeds to direction",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Welcome to CryptoWatchr!\n\nTrack cryptocurrencies, create price alerts, check the latest prices, and tune your quiet hours \u2014 all from Telegram.\n\nLet\u2019s get you set up. What\u2019s your timezone?\nYou can also type a custom timezone like UTC+2 or America/New_York."
+            }
+          }
+        ]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          {
+            "method": "answerCallbackQuery"
+          },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Welcome to CryptoWatchr.\n\nTrack coins, create price alerts, check the latest prices, and tune your quiet hours from the menu below."
+            }
+          }
+        ]
+      },
+      {
+        "send": { "callback": "menu:alerts", "messageId": 1 },
+        "expect": [
+          {
+            "method": "answerCallbackQuery"
+          },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Choose the type of alert you want to create:"
+            }
+          }
+        ]
+      },
+      {
+        "send": { "callback": "alert:type:threshold", "messageId": 1 },
+        "expect": [
+          {
+            "method": "answerCallbackQuery"
+          },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Select a coin for your threshold alert:"
+            }
+          }
+        ]
+      },
+      {
+        "send": { "callback": "alert:coin:custom", "messageId": 1 },
+        "expect": [
+          {
+            "method": "answerCallbackQuery"
+          },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Enter the coin ticker (e.g. SOL, DOGE, ADA):"
+            }
+          }
+        ]
+      },
+      {
+        "send": { "text": "BTC" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "BTC: When should this threshold alert fire?"
+            }
+          }
+        ]
+      }
+    ]
+  }
+]
