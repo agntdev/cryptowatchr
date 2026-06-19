@@ -343,7 +343,8 @@ export async function fetchPrices(coinIds: string[]): Promise<CoinGeckoPriceResp
         if (Object.keys(result).length > 0) {
           return result;
         }
-      } catch {
+      } catch (err) {
+        console.error(`[CryptoWatchr] fallback provider "${fallback.label}" failed`, err instanceof Error ? err.message : String(err));
         continue;
       }
     }
