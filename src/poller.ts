@@ -69,6 +69,7 @@ export function startPoller(
           console.error("[CryptoWatchr] failed to send alert message:", err);
         }
         await store.recordSentAlert(alert.rule.userId, alert.rule.id, DEFAULT_COOLDOWN_MS);
+        await store.incrementAlertFireCount(alert.rule.id);
       }
 
       const now = Date.now();
