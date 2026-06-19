@@ -1,0 +1,54 @@
+[
+  {
+    "name": "/start initiates onboarding with timezone selection",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Welcome to CryptoWatchr!\n\nTrack cryptocurrencies, create price alerts, check the latest prices, and tune your quiet hours \u2014 all from Telegram.\n\nLet\u2019s get you set up. What\u2019s your timezone?\nYou can also type a custom timezone like UTC+2 or America/New_York.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "UTC-8 (PST)", "callback_data": "onboard:tz:UTC-8" },
+                    { "text": "UTC-5 (EST)", "callback_data": "onboard:tz:UTC-5" }
+                  ],
+                  [
+                    { "text": "UTC+0 (GMT)", "callback_data": "onboard:tz:UTC+0" },
+                    { "text": "UTC+3 (MSK)", "callback_data": "onboard:tz:UTC+3" }
+                  ],
+                  [
+                    { "text": "UTC+8 (CST)", "callback_data": "onboard:tz:UTC+8" },
+                    { "text": "Skip for now", "callback_data": "onboard:skip" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "/start sets onboardingStep to timezone so text input is handled during onboarding",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "text": "UTC+5" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Timezone set to UTC+5.\n\nYour default settings:\n\u2022 Quiet hours: 22:00\u201307:00 (alerts suppressed while you sleep)\n\u2022 Alert cooldown: 1 hour (no repeat alerts for the same rule)\n\nYou can change these anytime in Settings."
+            }
+          }
+        ]
+      }
+    ]
+  }
+]
