@@ -1,0 +1,34 @@
+[
+  {
+    "name": "/admin_stats displays admin statistics for owner",
+    "steps": [
+      {
+        "send": { "text": "/admin_stats" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Admin Stats\n\nTotal users: 0\nActive users (last 30 days): 0\n\nTop Fired Alert Rules:\n(none)"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "/admin_stats is denied for non-owner",
+    "steps": [
+      {
+        "send": { "text": "/admin_stats", "userId": 999 },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "This command is only available to the bot owner."
+            }
+          }
+        ]
+      }
+    ]
+  }
+]
