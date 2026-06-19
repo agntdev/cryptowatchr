@@ -68,15 +68,17 @@ function formatPercentTimeframe(minutes: number): string {
 }
 
 export function formatAlertMessage(alert: TriggeredAlert): string {
-  const { rule, oldPrice, newPrice, pctChange } = alert;
+  const { rule, oldPrice, newPrice, absChange, pctChange } = alert;
   const ticker = rule.coin;
   const sign = pctChange >= 0 ? "+" : "";
 
   const fmtOld = `$${oldPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const fmtNew = `$${newPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const absSign = absChange >= 0 ? "+" : "";
+  const fmtAbs = `${absSign}$${Math.abs(absChange).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const fmtPct = `${sign}${pctChange.toFixed(2)}%`;
 
-  const headline = `ALERT: ${ticker} moved — old: ${fmtOld} → new: ${fmtNew} (${fmtPct})`;
+  const headline = `ALERT: ${ticker} moved — old: ${fmtOld} → new: ${fmtNew} (${fmtAbs}, ${fmtPct})`;
 
   let typeLine: string;
   if (rule.type === "threshold") {
