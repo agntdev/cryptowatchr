@@ -1,0 +1,16 @@
+[
+  {
+    "name": "percent alert shows coming soon notification",
+    "steps": [
+      {
+        "send": { "callback": "alert:type:percent", "messageId": 1 },
+        "expect": [
+          {
+            "method": "answerCallbackQuery",
+            "payload": { "text": "Percent alerts coming soon." }
+          }
+        ]
+      }
+    ]
+  }
+]
