@@ -302,7 +302,8 @@ async function fetchFromCoinAPI(coinIds: string[], apiKey: string): Promise<Coin
       if (!ticker) return null;
       try {
         return await fetchFromCoinApiSingle(ticker, apiKey);
-      } catch {
+      } catch (err) {
+        if (err instanceof PriceFetchError && err.kind === "rate_limit") throw err;
         return null;
       }
     }),
