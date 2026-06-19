@@ -865,14 +865,20 @@ function createPgPool(url: string) {
   return new Pool({ connectionString: url, ssl: url.includes("?sslmode=require") || url.includes("?ssl=true") ? { rejectUnauthorized: false } : false });
 }
 
+let _singleton: PersistentStore | undefined;
+
 export function createStore(): PersistentStore {
+  if (_singleton) return _singleton;
   if (process.env.DATABASE_URL) {
-    return new PostgresStore(process.env.DATABASE_URL);
+    _singleton = new PostgresStore(process.env.DATABASE_URL);
+    return _singleton;
   }
   if (process.env.REDIS_URL) {
-    return new RedisStore(process.env.REDIS_URL);
+    _singleton = new RedisStore(process.env.REDIS_URL);
+    return _singleton;
   }
-  return new MemoryStore();
+  _singleton = new MemoryStore();
+  return _singleton;
 }
 
 export function newAlertRule(
