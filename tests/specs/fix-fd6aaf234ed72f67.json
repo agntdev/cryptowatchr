@@ -1,0 +1,143 @@
+[
+  {
+    "name": "/list clears summary session — stale summary state does not capture free text",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:settings", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "settings:summary:enable", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "/list" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "text": "08:00" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "CryptoWatchr is online. Send /start to begin setup."
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "menu:watchlist clears summary session — stale summary state does not capture free text",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:settings", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "settings:summary:enable", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:watchlist", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "08:00" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "CryptoWatchr is online. Send /start to begin setup."
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "menu:add clears summary session — stale summary state does not capture free text",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:settings", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "settings:summary:enable", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:add", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "08:00" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "CryptoWatchr is online. Send /start to begin setup."
+            }
+          }
+        ]
+      }
+    ]
+  }
+]
