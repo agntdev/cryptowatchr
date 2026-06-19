@@ -12,7 +12,9 @@ async function main() {
 
   const store = createStore();
   const bot = buildBot(store, token);
-  startPoller(store, (chatId, text) => bot.api.sendMessage(chatId, text));
+  startPoller(store, (chatId, text, replyMarkup) =>
+    bot.api.sendMessage(chatId, text, { reply_markup: replyMarkup }),
+  );
   await bot.start();
 }
 

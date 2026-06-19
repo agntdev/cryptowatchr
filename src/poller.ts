@@ -1,6 +1,6 @@
 import type { PersistentStore } from "./store.js";
 import { fetchPrices } from "./price.js";
-import { evaluateAlertRules, formatAlertMessage, DEFAULT_COOLDOWN_MS } from "./evaluator.js";
+import { evaluateAlertRules, formatAlertDelivery, DEFAULT_COOLDOWN_MS } from "./evaluator.js";
 
 const POLL_INTERVAL_MS = 60_000;
 const MAX_RETRIES = 3;
@@ -27,7 +27,11 @@ async function fetchPricesWithRetry(coinIds: string[]): Promise<Record<string, {
 
 export function startPoller(
   store: PersistentStore,
-  sendMessage: (chatId: number, text: string) => Promise<unknown>,
+  sendMessage: (
+    chatId: number,
+    text: string,
+    replyMarkup?: ReturnType<typeof formatAlertDelivery>["reply_markup"],
+  ) => Promise<unknown>,
 ): () => void {
   let running = true;
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -58,9 +62,9 @@ export function startPoller(
           `new=$${alert.newPrice.toFixed(2)}`,
           `pct=${alert.pctChange.toFixed(2)}%`,
         );
-        const message = formatAlertMessage(alert);
+        const delivery = formatAlertDelivery(alert);
         try {
-          await sendMessage(alert.rule.userId, message);
+          await sendMessage(alert.rule.userId, delivery.text, delivery.reply_markup);
         } catch (err) {
           console.error("[CryptoWatchr] failed to send alert message:", err);
         }

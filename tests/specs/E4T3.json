@@ -1,0 +1,207 @@
+[
+  {
+    "name": "threshold alert notification uses required format with action buttons",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:alerts", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "alert:type:threshold", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "alert:coin:BTC", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "alert:dir:above", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "60000" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "alert:simulate:threshold", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "ALERT: BTC moved — old: $59,800.00 → new: $60,500.00 (+1.17%)\nType: Threshold · BTC above $60,000.00",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "View Alert" },
+                    { "text": "Pause Alert" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "view alert button opens alert details",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:alerts", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "alert:type:threshold", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "alert:coin:BTC", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "alert:dir:above", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "60000" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "alert:simulate:threshold", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "sendMessage" }
+        ]
+      },
+      {
+        "send": { "callback": "alert:view", "messageId": 2 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Alert details:\n\nBTC above $60,000.00"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "pause alert button suppresses further notifications",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:alerts", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "alert:type:threshold", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "alert:coin:BTC", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "alert:dir:above", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "60000" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "alert:simulate:threshold", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "sendMessage" }
+        ]
+      },
+      {
+        "send": { "callback": "alert:pause", "messageId": 2 },
+        "expect": [
+          {
+            "method": "answerCallbackQuery",
+            "payload": { "text": "Alert paused for 24 hours." }
+          },
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "This alert is paused for 24 hours. You won't receive notifications until the pause expires."
+            }
+          }
+        ]
+      }
+    ]
+  }
+]
