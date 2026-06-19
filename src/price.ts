@@ -16,10 +16,16 @@ interface CoinGeckoPriceResponse {
 
 export class PriceFetchError extends Error {
   kind: "network" | "rate_limit" | "server" | "unknown";
-  constructor(message: string, kind: PriceFetchError["kind"]) {
+  details: { url?: string; status?: number; body?: string } | null;
+  constructor(
+    message: string,
+    kind: PriceFetchError["kind"],
+    details?: { url?: string; status?: number; body?: string },
+  ) {
     super(message);
     this.name = "PriceFetchError";
     this.kind = kind;
+    this.details = details ?? null;
   }
 }
 
@@ -175,17 +181,39 @@ async function fetchPricesFromCoinGecko(coinIds: string[]): Promise<CoinGeckoPri
   try {
     response = await fetch(url, { headers });
   } catch (err) {
-    throw new PriceFetchError("Network error reaching the price service", "network");
+    console.error("[CryptoWatchr] CoinGecko fetch failed", {
+      url,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw new PriceFetchError(
+      "Network error reaching the price service",
+      "network",
+      { url },
+    );
   }
 
   if (!response.ok) {
+    let body: string | undefined;
+    try {
+      body = await response.text();
+    } catch {
+      // best-effort body capture
+    }
+
+    console.error("[CryptoWatchr] CoinGecko response error", {
+      url,
+      status: response.status,
+      body: body ? body.slice(0, 500) : undefined,
+    });
+
+    const details = { url, status: response.status, body };
     if (response.status === 429) {
-      throw new PriceFetchError("Rate limited by the price service", "rate_limit");
+      throw new PriceFetchError("Rate limited by the price service", "rate_limit", details);
     }
     if (response.status >= 500) {
-      throw new PriceFetchError("The price service encountered an error", "server");
+      throw new PriceFetchError("The price service encountered an error", "server", details);
     }
-    throw new PriceFetchError(`Unexpected response from price service (${response.status})`, "unknown");
+    throw new PriceFetchError(`Unexpected response from price service (${response.status})`, "unknown", details);
   }
 
   const data = (await response.json()) as CoinGeckoPriceResponse;
