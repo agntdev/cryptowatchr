@@ -74,6 +74,7 @@ export interface PersistentStore {
   recordUserActivity(userId: number): Promise<void>;
   incrementAlertFireCount(ruleId: string): Promise<void>;
   getAdminStats(): Promise<AdminStats>;
+  cleanupExpiredSentAlerts(): Promise<void>;
 }
 
 function createRedisClient(url: string) {
@@ -253,6 +254,10 @@ class RedisStore implements PersistentStore {
     const key = `${PREFIX}sent_alert:${userId}:${ruleId}`;
     const exists = await this.#client.exists(key);
     return exists === 1;
+  }
+
+  async cleanupExpiredSentAlerts(): Promise<void> {
+    // Redis keys auto-expire via PX; no explicit cleanup needed.
   }
 
   async cleanupOldSnapshots(olderThanMs: number): Promise<void> {
@@ -485,6 +490,15 @@ class MemoryStore implements PersistentStore {
       return false;
     }
     return true;
+  }
+
+  async cleanupExpiredSentAlerts(): Promise<void> {
+    const now = Date.now();
+    for (const [key, expiresAt] of this.#sentAlerts) {
+      if (now > expiresAt) {
+        this.#sentAlerts.delete(key);
+      }
+    }
   }
 
   #timezones = new Map<number, string>();
@@ -853,6 +867,13 @@ class PostgresStore implements PersistentStore {
       return false;
     }
     return true;
+  }
+
+  async cleanupExpiredSentAlerts(): Promise<void> {
+    await this.#pool.query(
+      `DELETE FROM sent_alerts WHERE expires_at < $1`,
+      [Date.now()],
+    );
   }
 
   async cleanupOldSnapshots(olderThanMs: number): Promise<void> {
