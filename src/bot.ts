@@ -1,8 +1,13 @@
-import { createBot, menuKeyboard, inlineKeyboard } from "./toolkit/index.js";
+import { readdirSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
+import { createBot, menuKeyboard, inlineKeyboard, type BotContext } from "./toolkit/index.js";
 import { createStore, newAlertRule, newPercentAlertRule, type AlertRule, type WatchlistEntry, type MorningSummary, type PersistentStore } from "./store.js";
 import { fetchPrices, formatPriceDisplay, PriceFetchError } from "./price.js";
 import { startPoller } from "./poller.js";
 import { DEFAULT_COOLDOWN_MS, evaluateAlertRules, formatAlertDelivery } from "./evaluator.js";
+import type { Composer } from "grammy";
 
 export interface Session {
   initializedAt: string;
@@ -703,6 +708,33 @@ export function buildBot(store?: PersistentStore, token = process.env.BOT_TOKEN 
     },
   });
 
+  // Auto-load handler modules from src/handlers/ (compiled to dist/handlers/).
+  const autoLoadedCommands = new Set<string>();
+  {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const handlersDir = join(__dirname, "handlers");
+    const _require = createRequire(import.meta.url);
+    try {
+      const files = readdirSync(handlersDir).filter((f) => f.endsWith(".js"));
+      for (const file of files.sort()) {
+        const mod = _require(join(handlersDir, file)) as {
+          default?: Composer<BotContext<Session>> | ((store: PersistentStore) => Composer<BotContext<Session>>);
+          handledCommands?: string[];
+        };
+        const raw = mod.default;
+        if (!raw) continue;
+        const composer = typeof raw === "function" ? raw(effectiveStore) : raw;
+        bot.use(composer);
+        if (mod.handledCommands) {
+          for (const cmd of mod.handledCommands) autoLoadedCommands.add(cmd);
+        }
+      }
+    } catch (err) {
+      console.warn("[CryptoWatchr] failed to load handlers:", err instanceof Error ? err.message : String(err));
+    }
+  }
+
   bot.command("start", async (ctx) => {
     clearAlertSession(ctx.session);
     clearAlertManageSession(ctx.session);
@@ -748,6 +780,7 @@ export function buildBot(store?: PersistentStore, token = process.env.BOT_TOKEN 
   });
 
   bot.command("price", async (ctx) => {
+    if (autoLoadedCommands.has("price")) return;
     clearAlertSession(ctx.session);
     clearAlertManageSession(ctx.session);
     clearWatchlistSession(ctx.session);
