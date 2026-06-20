@@ -1,9 +1,8 @@
 import { Composer } from "grammy";
 import { createRequire } from "node:module";
-import { type BotContext, menuKeyboard } from "../toolkit/index.js";
-import { fetchPrices, formatPriceDisplay, PriceFetchError } from "../price.js";
-import { coinIdForTicker } from "../bot.js";
-import type { PersistentStore, WatchlistEntry, PriceSnapshot } from "../store.js";
+import { type BotContext } from "../toolkit/index.js";
+import { fetchPrices, PriceFetchError } from "../price.js";
+import type { PersistentStore, PriceSnapshot } from "../store.js";
 
 interface CircuitState {
   failures: number;
@@ -17,27 +16,13 @@ const FAILURE_THRESHOLD = 5;
 const OPEN_TIMEOUT_MS = 60_000;
 const CACHE_FRESHNESS_MS = 5 * 60 * 1000;
 
-const PRICE_UNAVAILABLE_TEXT =
+export const PRICE_UNAVAILABLE_TEXT =
   "Price service temporarily unavailable. Please try again in a moment.";
 
-const EMPTY_WATCHLIST_TEXT =
+export const EMPTY_WATCHLIST_TEXT =
   "Your watchlist is empty.\n\nUse the Add Coin menu or type a ticker to start building your watchlist.";
 
-function mainMenu() {
-  return menuKeyboard(
-    [
-      { text: "Add Coin", data: "menu:add" },
-      { text: "My Watchlist", data: "menu:watchlist" },
-      { text: "Create Alert", data: "menu:alerts" },
-      { text: "Price Check", data: "menu:price" },
-      { text: "Settings", data: "menu:settings" },
-      { text: "Help", data: "menu:help" },
-    ],
-    2,
-  );
-}
-
-class CircuitBreaker {
+export class CircuitBreaker {
   #redis: unknown = null;
   #memoryState: CircuitState = {
     failures: 0,
@@ -140,7 +125,7 @@ function snapshotToApiFormat(
   };
 }
 
-async function fetchPricesWithCache(
+export async function fetchPricesWithCache(
   coinIds: string[],
   store: PersistentStore,
 ): Promise<{
@@ -223,67 +208,4 @@ async function fetchPricesWithCache(
   }
 }
 
-export default function (
-  store: PersistentStore,
-): Composer<BotContext<Record<string, unknown>>> {
-  const composer = new Composer<BotContext<Record<string, unknown>>>();
-
-  composer.command("price", async (ctx) => {
-    const raw = ctx.match?.trim();
-
-    if (raw) {
-      const ticker = raw.toUpperCase();
-      const coinId = coinIdForTicker(ticker);
-      if (!coinId) {
-        await ctx.reply(
-          `"${ticker}" is not a recognized ticker. Try a known ticker like BTC, ETH, or SOL.`,
-          { reply_markup: mainMenu() },
-        );
-        return;
-      }
-      try {
-        const { data } = await fetchPricesWithCache([coinId], store);
-        const text = formatPriceDisplay(data, [{ ticker, coinId }]);
-        await ctx.reply(text, { reply_markup: mainMenu() });
-      } catch {
-        await ctx.reply(PRICE_UNAVAILABLE_TEXT, {
-          reply_markup: mainMenu(),
-        });
-      }
-      return;
-    }
-
-    let entries: WatchlistEntry[];
-    try {
-      entries = await store.getWatchlist(ctx.chat!.id);
-    } catch {
-      await ctx.reply(
-        "Something went wrong. Please try again or use /help for assistance.",
-      );
-      return;
-    }
-
-    if (entries.length === 0) {
-      await ctx.reply(EMPTY_WATCHLIST_TEXT, { reply_markup: mainMenu() });
-      return;
-    }
-
-    const coinIds = [...new Set(entries.map((e) => e.coinId))];
-    try {
-      const { data } = await fetchPricesWithCache(coinIds, store);
-      const text = formatPriceDisplay(
-        data,
-        entries.map((e) => ({ ticker: e.ticker, coinId: e.coinId })),
-      );
-      await ctx.reply(text, { reply_markup: mainMenu() });
-    } catch {
-      await ctx.reply(PRICE_UNAVAILABLE_TEXT, {
-        reply_markup: mainMenu(),
-      });
-    }
-  });
-
-  return composer;
-}
-
-export const handledCommands = ["price"];
+export default new Composer<BotContext<Record<string, unknown>>>();
