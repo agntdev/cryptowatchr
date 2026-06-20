@@ -43,5 +43,3 @@ composer.command("price", async (ctx) => {
     await ctx.reply(warning);
   }
 });
-
-export default composer;
