@@ -81,6 +81,7 @@ export function defaultRedisStorage<T>(url: string): StorageAdapter<T> {
   // maxRetriesPerRequest: null → commands queue while (re)connecting rather
   // than failing fast, matching session-store expectations.
   const client = new Redis(url, { maxRetriesPerRequest: null, lazyConnect: false });
+  client.on("error", (err: Error) => console.error("[Redis] connection error:", err));
   return new RedisSessionStorage<T>(client as RedisLike);
 }
 

@@ -81,7 +81,9 @@ function createRedisClient(url: string) {
   const require = createRequire(import.meta.url);
   const ioredis = require("ioredis");
   const Redis = ioredis.default ?? ioredis.Redis ?? ioredis;
-  return new Redis(url, { maxRetriesPerRequest: null, lazyConnect: false });
+  const client = new Redis(url, { maxRetriesPerRequest: null, lazyConnect: false });
+  client.on("error", (err: Error) => console.error("[CryptoWatchr] Redis error:", err));
+  return client;
 }
 
 /** Minimum price sample history retained for percent-move alerts (24 hours). */
