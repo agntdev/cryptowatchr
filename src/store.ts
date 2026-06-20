@@ -569,12 +569,18 @@ class MemoryStore implements PersistentStore {
 
 class PostgresStore implements PersistentStore {
   #pool: ReturnType<typeof createPgPool>;
+  #init: Promise<void>;
 
   constructor(url: string) {
     this.#pool = createPgPool(url);
-    this.#createTables().catch((err) => {
+    this.#init = this.#createTables().catch((err) => {
       console.error("[CryptoWatchr] Postgres table init failed:", err);
+      throw err;
     });
+  }
+
+  async #ensureReady() {
+    await this.#init;
   }
 
   async #createTables() {
@@ -641,6 +647,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async setTimezone(userId: number, timezone: string): Promise<void> {
+    await this.#ensureReady();
     await this.#pool.query(
       `INSERT INTO user_settings (user_id, timezone)
        VALUES ($1, $2)
@@ -650,6 +657,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async getTimezone(userId: number): Promise<string | null> {
+    await this.#ensureReady();
     const res = await this.#pool.query(
       `SELECT timezone FROM user_settings WHERE user_id = $1`,
       [userId],
@@ -659,6 +667,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async setQuietHours(userId: number, start: string, end: string): Promise<void> {
+    await this.#ensureReady();
     await this.#pool.query(
       `INSERT INTO user_settings (user_id, quiet_hours_start, quiet_hours_end)
        VALUES ($1, $2, $3)
@@ -668,6 +677,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async getQuietHours(userId: number): Promise<QuietHours | null> {
+    await this.#ensureReady();
     const res = await this.#pool.query(
       `SELECT quiet_hours_start, quiet_hours_end FROM user_settings WHERE user_id = $1`,
       [userId],
@@ -679,6 +689,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async deleteQuietHours(userId: number): Promise<void> {
+    await this.#ensureReady();
     await this.#pool.query(
       `UPDATE user_settings SET quiet_hours_start = NULL, quiet_hours_end = NULL WHERE user_id = $1`,
       [userId],
@@ -686,6 +697,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async setMorningSummary(userId: number, time: string): Promise<void> {
+    await this.#ensureReady();
     await this.#pool.query(
       `INSERT INTO user_settings (user_id, morning_summary_enabled, morning_summary_time)
        VALUES ($1, true, $2)
@@ -695,6 +707,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async getMorningSummary(userId: number): Promise<MorningSummary | null> {
+    await this.#ensureReady();
     const res = await this.#pool.query(
       `SELECT morning_summary_enabled, morning_summary_time FROM user_settings WHERE user_id = $1`,
       [userId],
@@ -706,6 +719,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async deleteMorningSummary(userId: number): Promise<void> {
+    await this.#ensureReady();
     await this.#pool.query(
       `UPDATE user_settings SET morning_summary_enabled = false, morning_summary_time = NULL WHERE user_id = $1`,
       [userId],
@@ -713,6 +727,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async getAllMorningSummaryConfigs(): Promise<Array<{ userId: number; time: string }>> {
+    await this.#ensureReady();
     const res = await this.#pool.query(
       `SELECT user_id, morning_summary_time FROM user_settings WHERE morning_summary_enabled = true AND morning_summary_time IS NOT NULL`,
     );
@@ -723,6 +738,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async getLastSummarySent(userId: number): Promise<number | null> {
+    await this.#ensureReady();
     const res = await this.#pool.query(
       `SELECT morning_summary_last_sent FROM user_settings WHERE user_id = $1`,
       [userId],
@@ -733,6 +749,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async recordSummarySent(userId: number): Promise<void> {
+    await this.#ensureReady();
     await this.#pool.query(
       `INSERT INTO user_settings (user_id, morning_summary_last_sent)
        VALUES ($1, $2)
@@ -742,6 +759,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async createAlertRule(rule: AlertRule): Promise<void> {
+    await this.#ensureReady();
     await this.#pool.query(
       `INSERT INTO alert_rules (id, user_id, type, coin, direction, price, percent, timeframe_minutes, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -751,6 +769,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async getAlertRules(userId: number): Promise<AlertRule[]> {
+    await this.#ensureReady();
     const res = await this.#pool.query(
       `SELECT id, user_id, type, coin, direction, price, percent, timeframe_minutes, created_at
        FROM alert_rules WHERE user_id = $1`,
@@ -760,6 +779,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async getAllAlertRules(): Promise<AlertRule[]> {
+    await this.#ensureReady();
     const res = await this.#pool.query(
       `SELECT id, user_id, type, coin, direction, price, percent, timeframe_minutes, created_at FROM alert_rules`,
     );
@@ -767,6 +787,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async deleteAlertRule(userId: number, ruleId: string): Promise<void> {
+    await this.#ensureReady();
     await this.#pool.query(
       `DELETE FROM alert_rules WHERE id = $1 AND user_id = $2`,
       [ruleId, userId],
@@ -774,6 +795,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async addToWatchlist(userId: number, ticker: string, coinId: string): Promise<void> {
+    await this.#ensureReady();
     await this.#pool.query(
       `INSERT INTO watchlist (user_id, ticker, coin_id, added_at)
        VALUES ($1, $2, $3, $4)
@@ -783,6 +805,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async getWatchlist(userId: number): Promise<WatchlistEntry[]> {
+    await this.#ensureReady();
     const res = await this.#pool.query(
       `SELECT user_id, ticker, coin_id, added_at FROM watchlist WHERE user_id = $1`,
       [userId],
@@ -791,6 +814,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async removeFromWatchlist(userId: number, ticker: string): Promise<void> {
+    await this.#ensureReady();
     await this.#pool.query(
       `DELETE FROM watchlist WHERE user_id = $1 AND ticker = $2`,
       [userId, ticker],
@@ -798,6 +822,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async isInWatchlist(userId: number, ticker: string): Promise<boolean> {
+    await this.#ensureReady();
     const res = await this.#pool.query(
       `SELECT 1 FROM watchlist WHERE user_id = $1 AND ticker = $2`,
       [userId, ticker],
@@ -806,6 +831,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async getAllTrackedCoinIds(): Promise<string[]> {
+    await this.#ensureReady();
     const res = await this.#pool.query(
       `SELECT DISTINCT coin_id FROM watchlist`,
     );
@@ -813,6 +839,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async savePriceSnapshot(snapshot: PriceSnapshot): Promise<void> {
+    await this.#ensureReady();
     await this.#pool.query(
       `INSERT INTO price_snapshots (coin_id, usd, usd_24h_change, last_updated_at, polled_at)
        VALUES ($1, $2, $3, $4, $5)`,
@@ -821,6 +848,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async getLatestPriceSnapshot(coinId: string): Promise<PriceSnapshot | null> {
+    await this.#ensureReady();
     const res = await this.#pool.query(
       `SELECT coin_id, usd, usd_24h_change, last_updated_at, polled_at
        FROM price_snapshots WHERE coin_id = $1
@@ -832,6 +860,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async getPriceSnapshotAtOrBefore(coinId: string, atMs: number): Promise<PriceSnapshot | null> {
+    await this.#ensureReady();
     const res = await this.#pool.query(
       `SELECT coin_id, usd, usd_24h_change, last_updated_at, polled_at
        FROM price_snapshots
@@ -844,6 +873,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async recordSentAlert(userId: number, ruleId: string, cooldownMs: number): Promise<void> {
+    await this.#ensureReady();
     await this.#pool.query(
       `INSERT INTO sent_alerts (user_id, rule_id, expires_at)
        VALUES ($1, $2, $3)
@@ -853,6 +883,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async isAlertSuppressed(userId: number, ruleId: string): Promise<boolean> {
+    await this.#ensureReady();
     const res = await this.#pool.query(
       `SELECT expires_at FROM sent_alerts WHERE user_id = $1 AND rule_id = $2`,
       [userId, ruleId],
@@ -870,6 +901,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async cleanupExpiredSentAlerts(): Promise<void> {
+    await this.#ensureReady();
     await this.#pool.query(
       `DELETE FROM sent_alerts WHERE expires_at < $1`,
       [Date.now()],
@@ -877,6 +909,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async cleanupOldSnapshots(olderThanMs: number): Promise<void> {
+    await this.#ensureReady();
     const retentionMs = Math.max(olderThanMs, PRICE_SAMPLE_RETENTION_MS);
     const cutoff = Date.now() - retentionMs;
     await this.#pool.query(
@@ -886,6 +919,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async recordUserActivity(userId: number): Promise<void> {
+    await this.#ensureReady();
     await this.#pool.query(
       `INSERT INTO user_settings (user_id, last_active_at)
        VALUES ($1, $2)
@@ -895,6 +929,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async incrementAlertFireCount(ruleId: string): Promise<void> {
+    await this.#ensureReady();
     await this.#pool.query(
       `UPDATE alert_rules SET fire_count = COALESCE(fire_count, 0) + 1 WHERE id = $1`,
       [ruleId],
@@ -902,6 +937,7 @@ class PostgresStore implements PersistentStore {
   }
 
   async getAdminStats(): Promise<AdminStats> {
+    await this.#ensureReady();
     const [{ rows: totalRows }] = await Promise.all([
       this.#pool.query(`SELECT COUNT(DISTINCT user_id)::int AS count FROM user_settings`),
     ]);
