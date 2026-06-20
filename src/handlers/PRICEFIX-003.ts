@@ -2,31 +2,25 @@ import { Composer } from "grammy";
 import type { BotContext } from "../toolkit/index.js";
 import { coinIdForTicker } from "../bot.js";
 import type { Session } from "../bot.js";
-import { createStore } from "../store.js";
+import type { PersistentStore } from "../store.js";
 
-const composer = new Composer<BotContext<Session>>();
-
-composer.command("price", async (ctx) => {
-  const raw = ctx.match?.trim();
-  if (raw) return;
-
-  const store = createStore();
+export async function validateWatchlistTickers(
+  store: PersistentStore,
+  userId: number,
+): Promise<string[]> {
+  const invalidTickers: string[] = [];
 
   let entries;
   try {
-    entries = await store.getWatchlist(ctx.chat!.id);
+    entries = await store.getWatchlist(userId);
   } catch {
-    return;
+    return [];
   }
-
-  if (entries.length === 0) return;
-
-  const invalidTickers: string[] = [];
 
   for (const entry of entries) {
     if (!coinIdForTicker(entry.ticker)) {
       try {
-        await store.removeFromWatchlist(ctx.chat!.id, entry.ticker);
+        await store.removeFromWatchlist(userId, entry.ticker);
         invalidTickers.push(entry.ticker);
       } catch {
         // best-effort removal
@@ -34,12 +28,7 @@ composer.command("price", async (ctx) => {
     }
   }
 
-  if (invalidTickers.length > 0) {
-    const tickersList = invalidTickers.join(", ");
-    const warning =
-      invalidTickers.length === 1
-        ? `${tickersList} is no longer a supported ticker and has been removed from your watchlist.`
-        : `The following tickers are no longer supported and have been removed from your watchlist: ${tickersList}.`;
-    await ctx.reply(warning);
-  }
-});
+  return invalidTickers;
+}
+
+export default new Composer<BotContext<Session>>();

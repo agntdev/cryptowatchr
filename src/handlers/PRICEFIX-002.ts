@@ -1,35 +1,14 @@
 import { Composer } from "grammy";
-import { type BotContext, menuKeyboard } from "../toolkit/index.js";
-import { fetchPrices, formatPriceDisplay, PriceFetchError } from "../price.js";
-import { coinIdForTicker } from "../bot.js";
-import type { PersistentStore, WatchlistEntry } from "../store.js";
-
-const PRICE_UNAVAILABLE_TEXT =
-  "Price service temporarily unavailable. Please try again in a moment.";
-
-const EMPTY_WATCHLIST_TEXT =
-  "Your watchlist is empty.\n\nUse the Add Coin menu or type a ticker to start building your watchlist.";
+import type { BotContext } from "../toolkit/index.js";
+import { fetchPrices, PriceFetchError } from "../price.js";
+import type { PersistentStore } from "../store.js";
 
 const MAX_RETRIES = 3;
 const RETRY_DELAYS_MS = [1000, 2000, 4000];
 
-function mainMenu() {
-  return menuKeyboard(
-    [
-      { text: "Add Coin", data: "menu:add" },
-      { text: "My Watchlist", data: "menu:watchlist" },
-      { text: "Create Alert", data: "menu:alerts" },
-      { text: "Price Check", data: "menu:price" },
-      { text: "Settings", data: "menu:settings" },
-      { text: "Help", data: "menu:help" },
-    ],
-    2,
-  );
-}
-
-async function fetchPricesWithRetry<S extends object>(
+export async function fetchPricesWithRetry(
   coinIds: string[],
-  ctx: BotContext<S>,
+  ctx: BotContext<Record<string, unknown>>,
 ): Promise<ReturnType<typeof fetchPrices>> {
   let lastError: unknown;
 
@@ -67,65 +46,8 @@ async function fetchPricesWithRetry<S extends object>(
   throw lastError;
 }
 
-export default function (store: PersistentStore): Composer<BotContext<Record<string, unknown>>> {
-  const composer = new Composer<BotContext<Record<string, unknown>>>();
-
-  composer.command("price", async (ctx) => {
-    const raw = ctx.match?.trim();
-
-    if (raw) {
-      const ticker = raw.toUpperCase();
-      const coinId = coinIdForTicker(ticker);
-      if (!coinId) {
-        await ctx.reply(
-          `"${ticker}" is not a recognized ticker. Try a known ticker like BTC, ETH, or SOL.`,
-          { reply_markup: mainMenu() },
-        );
-        return;
-      }
-      try {
-        const data = await fetchPricesWithRetry([coinId], ctx);
-        const text = formatPriceDisplay(data, [{ ticker, coinId }]);
-        await ctx.reply(text, { reply_markup: mainMenu() });
-      } catch {
-        await ctx.reply(PRICE_UNAVAILABLE_TEXT, {
-          reply_markup: mainMenu(),
-        });
-      }
-      return;
-    }
-
-    let entries: WatchlistEntry[];
-    try {
-      entries = await store.getWatchlist(ctx.chat!.id);
-    } catch {
-      await ctx.reply(
-        "Something went wrong. Please try again or use /help for assistance.",
-      );
-      return;
-    }
-
-    if (entries.length === 0) {
-      await ctx.reply(EMPTY_WATCHLIST_TEXT, { reply_markup: mainMenu() });
-      return;
-    }
-
-    const coinIds = [...new Set(entries.map((e) => e.coinId))];
-    try {
-      const data = await fetchPricesWithRetry(coinIds, ctx);
-      const text = formatPriceDisplay(
-        data,
-        entries.map((e) => ({ ticker: e.ticker, coinId: e.coinId })),
-      );
-      await ctx.reply(text, { reply_markup: mainMenu() });
-    } catch {
-      await ctx.reply(PRICE_UNAVAILABLE_TEXT, {
-        reply_markup: mainMenu(),
-      });
-    }
-  });
-
-  return composer;
+export default function (
+  _store: PersistentStore,
+): Composer<BotContext<Record<string, unknown>>> {
+  return new Composer<BotContext<Record<string, unknown>>>();
 }
-
-export const handledCommands = ["price"];
