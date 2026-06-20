@@ -1,0 +1,97 @@
+[
+  {
+    "name": "/price with valid watchlist shows prices without extra warnings",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:tz:UTC+3", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "onboard:done", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:add", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "watchlist:coin:BTC", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "/price" },
+        "expect": [{ "method": "sendMessage" }]
+      }
+    ]
+  },
+  {
+    "name": "/price with single ticker argument shows coin price",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:tz:UTC+3", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "onboard:done", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "/price BTC" },
+        "expect": [{ "method": "sendMessage" }]
+      }
+    ]
+  },
+  {
+    "name": "/price with unknown ticker shows error message",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:tz:UTC+3", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "onboard:done", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "/price FAKECOIN" },
+        "expect": [{ "method": "sendMessage" }]
+      }
+    ]
+  }
+]
