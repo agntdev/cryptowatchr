@@ -112,32 +112,27 @@ function injectMyAlertsButton(payload: Record<string, unknown>): Record<string, 
 export default function (store: PersistentStore): Composer<BotContext<Session>> {
   const composer = new Composer<BotContext<Session>>();
 
-  let installed = false;
-
   composer.use(async (ctx, next) => {
-    if (!installed) {
-      installed = true;
-      ctx.api.config.use((prev, method, payload, signal) => {
-        const m = method as string;
-        if (
-          payload &&
-          typeof payload === "object" &&
-          (m === "sendMessage" || m === "editMessageText" || m === "editMessageReplyMarkup")
-        ) {
-          const transformed = injectMyAlertsButton(
-            payload as Record<string, unknown>,
-          );
-          return prev(method, transformed as typeof payload, signal);
-        }
-        return prev(method, payload, signal);
-      });
-    }
+    ctx.api.config.use((prev, method, payload, signal) => {
+      const m = method as string;
+      if (
+        payload &&
+        typeof payload === "object" &&
+        (m === "sendMessage" || m === "editMessageText" || m === "editMessageReplyMarkup")
+      ) {
+        const transformed = injectMyAlertsButton(
+          payload as Record<string, unknown>,
+        );
+        return prev(method, transformed as typeof payload, signal);
+      }
+      return prev(method, payload, signal);
+    });
     return next();
   });
 
-  composer.on("callback_query:data", async (ctx) => {
+  composer.on("callback_query:data", async (ctx, next) => {
     const data = ctx.callbackQuery.data;
-    if (data !== "menu:myalerts") return;
+    if (data !== "menu:myalerts") return next();
 
     clearAlertSession(ctx.session);
     clearAlertManageSession(ctx.session);
