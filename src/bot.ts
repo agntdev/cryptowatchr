@@ -414,7 +414,6 @@ function timezoneKeyboard() {
 
 function confirmKeyboard() {
   return inlineKeyboard([
-    [{ text: "Set Quiet Hours", callback_data: "onboard:qhours" }],
     [{ text: "Continue to menu", callback_data: "onboard:done" }],
   ]);
 }
