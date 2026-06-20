@@ -1,0 +1,35 @@
+[
+  {
+    "name": "/admin_stats denied for non-owner when TELEGRAM_OWNER_ID is set",
+    "steps": [
+      {
+        "send": { "text": "/admin_stats", "userId": 1 },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Access denied. This command is restricted to the bot owner."
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "/admin_stats returns stats when called by the bot owner",
+    "steps": [
+      {
+        "send": { "text": "/admin_stats", "userId": 99999 },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "*Admin Stats*\n\nTotal users: 1\nActive users (30 days): 1\n\nTop fired rules: none yet",
+              "parse_mode": "Markdown"
+            }
+          }
+        ]
+      }
+    ]
+  }
+]
