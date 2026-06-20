@@ -135,9 +135,9 @@ export default function (store: PersistentStore): Composer<BotContext<Session>> 
     return next();
   });
 
-  composer.on("callback_query:data", async (ctx) => {
+  composer.on("callback_query:data", async (ctx, next) => {
     const data = ctx.callbackQuery.data;
-    if (data !== "menu:myalerts") return;
+    if (data !== "menu:myalerts") return next();
 
     clearAlertSession(ctx.session);
     clearAlertManageSession(ctx.session);
