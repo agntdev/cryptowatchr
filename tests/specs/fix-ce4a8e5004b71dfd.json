@@ -1,0 +1,47 @@
+[
+  {
+    "name": "/price with unknown ticker returns single error reply",
+    "steps": [
+      {
+        "send": { "text": "/price INVALIDCOIN" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "\"INVALIDCOIN\" is not a recognized ticker. Try a known ticker like BTC, ETH, or SOL."
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "/price without args and empty watchlist returns single reply",
+    "steps": [
+      {
+        "send": { "text": "/price" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Your watchlist is empty.\n\nUse the Add Coin menu or type a ticker to start building your watchlist."
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "/price BTC returns single price reply",
+    "steps": [
+      {
+        "send": { "text": "/price BTC" },
+        "expect": [
+          {
+            "method": "sendMessage"
+          }
+        ]
+      }
+    ]
+  }
+]
