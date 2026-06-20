@@ -161,7 +161,6 @@
               "text": "Timezone set to UTC+3.\n\nYour default settings:\n\u2022 Quiet hours: 22:00\u201307:00 (alerts suppressed while you sleep)\n\u2022 Alert cooldown: 1 hour (no repeat alerts for the same rule)\n\nYou can change these anytime in Settings.",
               "reply_markup": {
                 "inline_keyboard": [
-                  [{ "text": "Set Quiet Hours", "callback_data": "onboard:qhours" }],
                   [{ "text": "Continue to menu", "callback_data": "onboard:done" }]
                 ]
               }
@@ -204,19 +203,14 @@
         "send": { "callback": "menu:settings", "messageId": 1 },
         "expect": [
           { "method": "answerCallbackQuery" },
-          {
-            "method": "editMessageText",
-            "payload": {
-              "text": "*Settings*\n\n\u2022 Morning Summary: Off\n\nMorning summary sends you a daily report of your watched coins at your chosen time.",
-              "parse_mode": "Markdown",
-              "reply_markup": {
-                "inline_keyboard": [
-                  [{ "text": "Turn On Summary", "callback_data": "settings:summary:enable" }],
-                  [{ "text": "Back to menu", "callback_data": "menu:back" }]
-                ]
-              }
-            }
-          }
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:back", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
         ]
       }
     ]
@@ -232,11 +226,35 @@
         "send": { "callback": "onboard:tz:UTC+5", "messageId": 1 },
         "expect": [
           { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "Timezone set to UTC+5.\n\nYour default settings:\n\u2022 Quiet hours: 22:00\u201307:00 (alerts suppressed while you sleep)\n\u2022 Alert cooldown: 1 hour (no repeat alerts for the same rule)\n\nYou can change these anytime in Settings.",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [{ "text": "Continue to menu", "callback_data": "onboard:done" }]
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "send": { "callback": "onboard:done", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
           { "method": "editMessageText" }
         ]
       },
       {
-        "send": { "callback": "onboard:qhours", "messageId": 1 },
+        "send": { "callback": "menu:settings", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "settings:qhours:change", "messageId": 1 },
         "expect": [
           { "method": "answerCallbackQuery" },
           { "method": "editMessageText" }
@@ -251,7 +269,8 @@
               "text": "What time should your quiet hours end? (HH:MM, 24-hour format)\n\nExample: 07:00",
               "reply_markup": {
                 "inline_keyboard": [
-                  [{ "text": "Keep defaults", "callback_data": "onboard:qhours:skip" }]
+                  [{ "text": "Keep defaults", "callback_data": "settings:qhours:skip" }],
+                  [{ "text": "Back", "callback_data": "settings:back" }]
                 ]
               }
             }
@@ -264,15 +283,10 @@
           {
             "method": "sendMessage",
             "payload": {
-              "text": "Timezone set to UTC+5.\n\nYour settings:\n\u2022 Quiet hours: 23:00\u201306:00 (alerts suppressed while you sleep)\n\u2022 Alert cooldown: 1 hour (no repeat alerts for the same rule)\n\nYou can change these anytime in Settings.",
-              "reply_markup": {
-                "inline_keyboard": [
-                  [{ "text": "Set Quiet Hours", "callback_data": "onboard:qhours" }],
-                  [{ "text": "Continue to menu", "callback_data": "onboard:done" }]
-                ]
-              }
+              "text": "Quiet hours set to 23:00\u201306:00."
             }
-          }
+          },
+          { "method": "sendMessage" }
         ]
       }
     ]
