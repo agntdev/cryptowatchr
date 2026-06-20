@@ -1,0 +1,458 @@
+[
+  {
+    "name": "settings menu shows timezone quiet-hours and summary sections",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:settings", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "*Settings*\n\n\u2022 Timezone: Not set\n\u2022 Quiet Hours: Off\n\u2022 Morning Summary: Off\n\nConfigure your timezone, quiet hours, and morning summary.",
+              "parse_mode": "Markdown",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "Set Timezone", "callback_data": "settings:tz:change" }
+                  ],
+                  [
+                    { "text": "Set Quiet Hours", "callback_data": "settings:qhours:change" }
+                  ],
+                  [
+                    { "text": "Turn On Summary", "callback_data": "settings:summary:enable" }
+                  ],
+                  [
+                    { "text": "Back to menu", "callback_data": "menu:back" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "set timezone from settings persists across settings opens",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:settings", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "settings:tz:change", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "settings:tz:set:UTC+3", "messageId": 1 },
+        "expect": [
+          {
+            "method": "answerCallbackQuery",
+            "payload": { "text": "Timezone set to UTC+3." }
+          },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "*Settings*\n\n\u2022 Timezone: UTC+3\n\u2022 Quiet Hours: Off\n\u2022 Morning Summary: Off\n\nConfigure your timezone, quiet hours, and morning summary.",
+              "parse_mode": "Markdown",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "Change Timezone", "callback_data": "settings:tz:change" }
+                  ],
+                  [
+                    { "text": "Set Quiet Hours", "callback_data": "settings:qhours:change" }
+                  ],
+                  [
+                    { "text": "Turn On Summary", "callback_data": "settings:summary:enable" }
+                  ],
+                  [
+                    { "text": "Back to menu", "callback_data": "menu:back" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "send": { "callback": "menu:back", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:settings", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "*Settings*\n\n\u2022 Timezone: UTC+3\n\u2022 Quiet Hours: Off\n\u2022 Morning Summary: Off\n\nConfigure your timezone, quiet hours, and morning summary.",
+              "parse_mode": "Markdown",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "Change Timezone", "callback_data": "settings:tz:change" }
+                  ],
+                  [
+                    { "text": "Set Quiet Hours", "callback_data": "settings:qhours:change" }
+                  ],
+                  [
+                    { "text": "Turn On Summary", "callback_data": "settings:summary:enable" }
+                  ],
+                  [
+                    { "text": "Back to menu", "callback_data": "menu:back" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "set custom timezone via free-text input from settings",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:settings", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "settings:tz:change", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "settings:tz:custom", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "America/New_York" },
+        "expect": [
+          { "method": "sendMessage", "payload": { "text": "Timezone set to America/New_York." } },
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "*Settings*\n\n\u2022 Timezone: America/New_York\n\u2022 Quiet Hours: Off\n\u2022 Morning Summary: Off\n\nConfigure your timezone, quiet hours, and morning summary.",
+              "parse_mode": "Markdown",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "Change Timezone", "callback_data": "settings:tz:change" }
+                  ],
+                  [
+                    { "text": "Set Quiet Hours", "callback_data": "settings:qhours:change" }
+                  ],
+                  [
+                    { "text": "Turn On Summary", "callback_data": "settings:summary:enable" }
+                  ],
+                  [
+                    { "text": "Back to menu", "callback_data": "menu:back" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "set quiet hours from settings",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:settings", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "settings:qhours:change", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "23:00" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "What time should your quiet hours end? (HH:MM, 24-hour format)\n\nExample: 07:00",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [{ "text": "Keep defaults", "callback_data": "settings:qhours:skip" }],
+                  [{ "text": "Back", "callback_data": "settings:back" }]
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "send": { "text": "06:00" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": { "text": "Quiet hours set to 23:00\u201306:00." }
+          },
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "*Settings*\n\n\u2022 Timezone: Not set\n\u2022 Quiet Hours: 23:00\u201306:00\n\u2022 Morning Summary: Off\n\nConfigure your timezone, quiet hours, and morning summary.",
+              "parse_mode": "Markdown",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "Set Timezone", "callback_data": "settings:tz:change" }
+                  ],
+                  [
+                    { "text": "Change Quiet Hours", "callback_data": "settings:qhours:change" },
+                    { "text": "Clear Quiet Hours", "callback_data": "settings:qhours:clear" }
+                  ],
+                  [
+                    { "text": "Turn On Summary", "callback_data": "settings:summary:enable" }
+                  ],
+                  [
+                    { "text": "Back to menu", "callback_data": "menu:back" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "clear quiet hours from settings",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:settings", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "settings:qhours:change", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "23:00" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "text": "06:00" },
+        "expect": [{ "method": "sendMessage" }, { "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "settings:qhours:clear", "messageId": 4 },
+        "expect": [
+          {
+            "method": "answerCallbackQuery",
+            "payload": { "text": "Quiet hours cleared." }
+          },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "*Settings*\n\n\u2022 Timezone: Not set\n\u2022 Quiet Hours: Off\n\u2022 Morning Summary: Off\n\nConfigure your timezone, quiet hours, and morning summary.",
+              "parse_mode": "Markdown",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "Set Timezone", "callback_data": "settings:tz:change" }
+                  ],
+                  [
+                    { "text": "Set Quiet Hours", "callback_data": "settings:qhours:change" }
+                  ],
+                  [
+                    { "text": "Turn On Summary", "callback_data": "settings:summary:enable" }
+                  ],
+                  [
+                    { "text": "Back to menu", "callback_data": "menu:back" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "morning summary via settings returns to enhanced settings view",
+    "steps": [
+      {
+        "send": { "text": "/start" },
+        "expect": [{ "method": "sendMessage" }]
+      },
+      {
+        "send": { "callback": "onboard:skip", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "menu:settings", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "callback": "settings:summary:enable", "messageId": 1 },
+        "expect": [
+          { "method": "answerCallbackQuery" },
+          { "method": "editMessageText" }
+        ]
+      },
+      {
+        "send": { "text": "08:00" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": { "text": "Morning summary is now on at 08:00." }
+          },
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "*Settings*\n\n\u2022 Timezone: Not set\n\u2022 Quiet Hours: Off\n\u2022 Morning Summary: On at 08:00\n\nConfigure your timezone, quiet hours, and morning summary.",
+              "parse_mode": "Markdown",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "Set Timezone", "callback_data": "settings:tz:change" }
+                  ],
+                  [
+                    { "text": "Set Quiet Hours", "callback_data": "settings:qhours:change" }
+                  ],
+                  [
+                    { "text": "Change Summary Time", "callback_data": "settings:summary:time" }
+                  ],
+                  [
+                    { "text": "Turn Off Summary", "callback_data": "settings:summary:disable" }
+                  ],
+                  [
+                    { "text": "Back to menu", "callback_data": "menu:back" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "send": { "callback": "settings:summary:disable", "messageId": 3 },
+        "expect": [
+          {
+            "method": "answerCallbackQuery",
+            "payload": { "text": "Morning summary turned off." }
+          },
+          {
+            "method": "editMessageText",
+            "payload": {
+              "text": "*Settings*\n\n\u2022 Timezone: Not set\n\u2022 Quiet Hours: Off\n\u2022 Morning Summary: Off\n\nConfigure your timezone, quiet hours, and morning summary.",
+              "parse_mode": "Markdown",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    { "text": "Set Timezone", "callback_data": "settings:tz:change" }
+                  ],
+                  [
+                    { "text": "Set Quiet Hours", "callback_data": "settings:qhours:change" }
+                  ],
+                  [
+                    { "text": "Turn On Summary", "callback_data": "settings:summary:enable" }
+                  ],
+                  [
+                    { "text": "Back to menu", "callback_data": "menu:back" }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+]
