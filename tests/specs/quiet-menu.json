@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Quiet hours",
+    "steps": [
+      {
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Configure quiet hours start/end; bot will suppress alerts during window and send queued summary at end"
+            }
+          }
+        ],
+        "send": {
+          "callback": "quiet:menu"
+        }
+      }
+    ]
+  }
+]
