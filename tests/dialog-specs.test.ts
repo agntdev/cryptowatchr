@@ -17,16 +17,12 @@ const SPECS_DIR = join(process.cwd(), "tests", "specs");
 describe("dialog specs (the publish gate replays these)", () => {
   it("every tests/specs/*.json spec passes against the real bot", async () => {
     if (!existsSync(SPECS_DIR)) return; // no specs authored yet
-    // Only the canonical current feature specs participate. Historical generated
-    // fixtures are retained for audit but describe superseded command surfaces.
-    const files = readdirSync(SPECS_DIR).filter((f) => [
-      "onboarding.json", "watchlist.json", "alerts.json", "schedule.json", "price-current.json"
-    ].includes(f));
+    const files = readdirSync(SPECS_DIR).filter((f) => f.endsWith(".json"));
     if (files.length === 0) return;
     const specs = files.flatMap((f) =>
       parseBotSpecs(JSON.parse(readFileSync(join(SPECS_DIR, f), "utf8"))),
     );
-    const suite = await runSpecs(() => buildBot(undefined, "123456:TEST"), specs);
+    const suite = await runSpecs(() => buildBot("123456:TEST"), specs);
     expect(suite.failed, "\n" + formatSuiteResult(suite)).toBe(0);
   });
 });
