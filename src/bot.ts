@@ -1,5 +1,5 @@
 import { createBot, menuKeyboard, inlineKeyboard, type BotContext } from "./toolkit/index.js";
-import { createStore, newAlertRule, newPercentAlertRule, type AlertRule, type WatchlistEntry, type MorningSummary, type PersistentStore } from "./store.js";
+import { createStore, newAlertRule, newPercentAlertRule, type AlertRule, type WatchlistEntry, type MorningSummary, type QuietHours, type PersistentStore } from "./store.js";
 import { fetchPrices, formatPriceDisplay, PriceFetchError } from "./price.js";
 import { startPoller } from "./poller.js";
 import { DEFAULT_COOLDOWN_MS, evaluateAlertRules, formatAlertDelivery } from "./evaluator.js";
@@ -22,6 +22,7 @@ export interface Session {
   editingRuleId?: string;
   tempEditPercent?: number;
   summaryStep?: "time";
+  settingsStep?: "timezone" | "quietStart" | "quietEnd";
   lastNotifiedRuleId?: string;
 }
 
@@ -382,6 +383,7 @@ function mainMenu() {
       { text: "Add Coin", data: "menu:add" },
       { text: "My Watchlist", data: "menu:watchlist" },
       { text: "Create Alert", data: "menu:alerts" },
+      { text: "My Alerts", data: "menu:myalerts" },
       { text: "Price Check", data: "menu:price" },
       { text: "Settings", data: "menu:settings" },
       { text: "Help", data: "menu:help" },
@@ -628,28 +630,38 @@ function clearSummarySession(session: Session) {
   session.summaryStep = undefined;
 }
 
-function settingsText(summary: MorningSummary | null) {
+function settingsText(summary: MorningSummary | null, timezone: string | null, quiet: QuietHours | null) {
   const lines = ["*Settings*"];
   lines.push("");
+  lines.push(`• Timezone: ${timezone ?? "Not set"}`);
+  lines.push(`• Quiet Hours: ${quiet ? `${quiet.start}–${quiet.end}` : "Off"}`);
   if (summary) {
     lines.push(`\u2022 Morning Summary: On at ${summary.time}`);
   } else {
     lines.push("\u2022 Morning Summary: Off");
   }
   lines.push("");
-  lines.push("Morning summary sends you a daily report of your watched coins at your chosen time.");
+  lines.push("Configure your timezone, quiet hours, and morning summary.");
   return lines.join("\n");
 }
 
-function settingsKeyboard(summary: MorningSummary | null) {
+function settingsKeyboard(summary: MorningSummary | null, timezone: string | null, quiet: QuietHours | null) {
+  const tzLabel = timezone ? "Change Timezone" : "Set Timezone";
+  const quietRow = quiet
+    ? [{ text: "Change Quiet Hours", callback_data: "settings:qhours:change" }, { text: "Clear Quiet Hours", callback_data: "settings:qhours:clear" }]
+    : [{ text: "Set Quiet Hours", callback_data: "settings:qhours:change" }];
   if (summary) {
     return inlineKeyboard([
+      [{ text: tzLabel, callback_data: "settings:tz:change" }],
+      quietRow,
       [{ text: "Change Summary Time", callback_data: "settings:summary:time" }],
       [{ text: "Turn Off Summary", callback_data: "settings:summary:disable" }],
       [{ text: "Back to menu", callback_data: "menu:back" }],
     ]);
   }
   return inlineKeyboard([
+    [{ text: tzLabel, callback_data: "settings:tz:change" }],
+    quietRow,
     [{ text: "Turn On Summary", callback_data: "settings:summary:enable" }],
     [{ text: "Back to menu", callback_data: "menu:back" }],
   ]);
@@ -685,8 +697,18 @@ function summaryStatusKeyboard(summary: MorningSummary | null) {
   ]);
 }
 
-export function buildBot(store?: PersistentStore, token = process.env.BOT_TOKEN ?? "test:cryptowatchr") {
-  const effectiveStore = store ?? createStore();
+/**
+ * Build the bot.  The harness (and the deployment entrypoint) pass a token as
+ * the first argument, while integration tests may provide a store explicitly.
+ * Accept both forms so a token is never accidentally used as a store.
+ */
+export function buildBot(token?: string): ReturnType<typeof createBot<Session>>;
+export function buildBot(store?: PersistentStore, token?: string): ReturnType<typeof createBot<Session>>;
+export function buildBot(storeOrToken?: PersistentStore | string, suppliedToken?: string) {
+  const effectiveStore = typeof storeOrToken === "string" || !storeOrToken ? createStore() : storeOrToken;
+  const token = typeof storeOrToken === "string"
+    ? storeOrToken
+    : suppliedToken ?? process.env.BOT_TOKEN ?? "test:cryptowatchr";
   const bot = createBot<Session>(token, {
     initial: () => ({ initializedAt: new Date(0).toISOString() }),
     onError: async (err) => {
@@ -711,8 +733,9 @@ export function buildBot(store?: PersistentStore, token = process.env.BOT_TOKEN 
     clearAlertManageSession(ctx.session);
     clearWatchlistSession(ctx.session);
     clearSummarySession(ctx.session);
-    ctx.session.onboardingStep = undefined;
-    await ctx.reply(MAIN_MENU_TEXT, { reply_markup: mainMenu() });
+    ctx.session.onboardingStep = "timezone";
+    await effectiveStore.recordUserActivity(ctx.chat!.id);
+    await ctx.reply(WELCOME_TEXT, { reply_markup: timezoneKeyboard() });
   });
 
   bot.command("help", async (ctx) => {
@@ -966,7 +989,7 @@ export function buildBot(store?: PersistentStore, token = process.env.BOT_TOKEN 
       return;
     }
 
-    if (data === "menu:watchlist") {
+    if (data === "menu:watchlist" || data === "watchlist:menu") {
       clearAlertSession(ctx.session);
       clearWatchlistSession(ctx.session);
       let entries: WatchlistEntry[];
@@ -1061,7 +1084,7 @@ export function buildBot(store?: PersistentStore, token = process.env.BOT_TOKEN 
 
     // --- Alert flow callbacks ---
 
-    if (data === "menu:alerts") {
+    if (data === "menu:alerts" || data === "alerts:create") {
       clearAlertSession(ctx.session);
       ctx.session.alertStep = "type";
       await ctx.answerCallbackQuery();
@@ -1085,6 +1108,25 @@ export function buildBot(store?: PersistentStore, token = process.env.BOT_TOKEN 
         await ctx.editMessageText(EMPTY_ALERTS_TEXT, { reply_markup: mainMenu() });
       } else {
         await ctx.editMessageText(myAlertsText(rules), { reply_markup: myAlertsKeyboard(rules) });
+      }
+      return;
+    }
+
+    if (data === "menu:price") {
+      clearAlertSession(ctx.session);
+      clearAlertManageSession(ctx.session);
+      clearWatchlistSession(ctx.session);
+      const entries = await effectiveStore.getWatchlist(ctx.chat!.id);
+      await ctx.answerCallbackQuery();
+      if (entries.length === 0) {
+        await ctx.editMessageText(EMPTY_WATCHLIST_TEXT, { reply_markup: mainMenu() });
+        return;
+      }
+      try {
+        const prices = await fetchPrices([...new Set(entries.map((entry) => entry.coinId))]);
+        await ctx.editMessageText(formatPriceDisplay(prices, entries.map((entry) => ({ ticker: entry.ticker, coinId: entry.coinId }))), { reply_markup: mainMenu() });
+      } catch (error) {
+        await ctx.editMessageText(error instanceof PriceFetchError ? priceErrorMessage(error.kind) : "Unable to fetch price data right now. Please try again later.", { reply_markup: mainMenu() });
       }
       return;
     }
@@ -1359,20 +1401,78 @@ export function buildBot(store?: PersistentStore, token = process.env.BOT_TOKEN 
 
     // --- Settings callbacks ---
 
-    if (data === "menu:settings") {
+    if (data === "menu:settings" || data === "summary:menu" || data === "quiet:menu") {
       clearAlertSession(ctx.session);
       clearAlertManageSession(ctx.session);
       clearWatchlistSession(ctx.session);
       clearSummarySession(ctx.session);
       let summary: MorningSummary | null;
+      let timezone: string | null;
+      let quiet: QuietHours | null;
       try {
         summary = await effectiveStore.getMorningSummary(ctx.chat!.id);
+        timezone = await effectiveStore.getTimezone(ctx.chat!.id);
+        quiet = await effectiveStore.getQuietHours(ctx.chat!.id);
       } catch {
         await ctx.answerCallbackQuery({ text: "Failed to load settings." });
         return;
       }
       await ctx.answerCallbackQuery();
-      await ctx.editMessageText(settingsText(summary), { parse_mode: "Markdown", reply_markup: settingsKeyboard(summary) });
+      await ctx.editMessageText(settingsText(summary, timezone, quiet), { parse_mode: "Markdown", reply_markup: settingsKeyboard(summary, timezone, quiet) });
+      return;
+    }
+
+    if (data === "settings:tz:change") {
+      ctx.session.settingsStep = undefined;
+      await ctx.answerCallbackQuery();
+      await ctx.editMessageText("Choose your timezone, or enter one yourself.", { reply_markup: inlineKeyboard([
+        [{ text: "UTC−5", callback_data: "settings:tz:set:UTC-5" }, { text: "UTC+0", callback_data: "settings:tz:set:UTC+0" }],
+        [{ text: "UTC+3", callback_data: "settings:tz:set:UTC+3" }, { text: "UTC+8", callback_data: "settings:tz:set:UTC+8" }],
+        [{ text: "Custom timezone", callback_data: "settings:tz:custom" }],
+        [{ text: "Back", callback_data: "settings:back" }],
+      ]) });
+      return;
+    }
+    if (data.startsWith("settings:tz:set:")) {
+      const timezone = data.slice("settings:tz:set:".length);
+      await effectiveStore.setTimezone(ctx.chat!.id, timezone);
+      const [summary, quiet] = await Promise.all([effectiveStore.getMorningSummary(ctx.chat!.id), effectiveStore.getQuietHours(ctx.chat!.id)]);
+      await ctx.answerCallbackQuery({ text: `Timezone set to ${timezone}.` });
+      await ctx.editMessageText(settingsText(summary, timezone, quiet), { parse_mode: "Markdown", reply_markup: settingsKeyboard(summary, timezone, quiet) });
+      return;
+    }
+    if (data === "settings:tz:custom") {
+      ctx.session.settingsStep = "timezone";
+      await ctx.answerCallbackQuery();
+      await ctx.editMessageText("Enter an IANA timezone, for example America/New_York.", { reply_markup: inlineKeyboard([[{ text: "Back", callback_data: "settings:back" }]]) });
+      return;
+    }
+    if (data === "settings:qhours:change") {
+      ctx.session.settingsStep = "quietStart";
+      await ctx.answerCallbackQuery();
+      await ctx.editMessageText("What time should your quiet hours start? (HH:MM, 24-hour format)\n\nExample: 22:00", { reply_markup: inlineKeyboard([[{ text: "Keep defaults", callback_data: "settings:qhours:skip" }], [{ text: "Back", callback_data: "settings:back" }]]) });
+      return;
+    }
+    if (data === "settings:qhours:clear") {
+      await effectiveStore.deleteQuietHours(ctx.chat!.id);
+      const [summary, timezone] = await Promise.all([effectiveStore.getMorningSummary(ctx.chat!.id), effectiveStore.getTimezone(ctx.chat!.id)]);
+      await ctx.answerCallbackQuery({ text: "Quiet hours cleared." });
+      await ctx.editMessageText(settingsText(summary, timezone, null), { parse_mode: "Markdown", reply_markup: settingsKeyboard(summary, timezone, null) });
+      return;
+    }
+    if (data === "settings:qhours:skip") {
+      await effectiveStore.setQuietHours(ctx.chat!.id, DEFAULT_QUIET_START, DEFAULT_QUIET_END);
+      ctx.session.settingsStep = undefined;
+      const [summary, timezone] = await Promise.all([effectiveStore.getMorningSummary(ctx.chat!.id), effectiveStore.getTimezone(ctx.chat!.id)]);
+      await ctx.answerCallbackQuery({ text: "Quiet hours set." });
+      await ctx.editMessageText(settingsText(summary, timezone, { start: DEFAULT_QUIET_START, end: DEFAULT_QUIET_END }), { parse_mode: "Markdown", reply_markup: settingsKeyboard(summary, timezone, { start: DEFAULT_QUIET_START, end: DEFAULT_QUIET_END }) });
+      return;
+    }
+    if (data === "settings:back") {
+      ctx.session.settingsStep = undefined;
+      const [summary, timezone, quiet] = await Promise.all([effectiveStore.getMorningSummary(ctx.chat!.id), effectiveStore.getTimezone(ctx.chat!.id), effectiveStore.getQuietHours(ctx.chat!.id)]);
+      await ctx.answerCallbackQuery();
+      await ctx.editMessageText(settingsText(summary, timezone, quiet), { parse_mode: "Markdown", reply_markup: settingsKeyboard(summary, timezone, quiet) });
       return;
     }
 
@@ -1406,7 +1506,8 @@ export function buildBot(store?: PersistentStore, token = process.env.BOT_TOKEN 
         return;
       }
       await ctx.answerCallbackQuery();
-      await ctx.editMessageText(settingsText(summary), { parse_mode: "Markdown", reply_markup: settingsKeyboard(summary) });
+      const [timezone, quiet] = await Promise.all([effectiveStore.getTimezone(ctx.chat!.id), effectiveStore.getQuietHours(ctx.chat!.id)]);
+      await ctx.editMessageText(settingsText(summary, timezone, quiet), { parse_mode: "Markdown", reply_markup: settingsKeyboard(summary, timezone, quiet) });
       return;
     }
 
@@ -1425,7 +1526,8 @@ export function buildBot(store?: PersistentStore, token = process.env.BOT_TOKEN 
         return;
       }
       await ctx.answerCallbackQuery({ text: "Morning summary turned off." });
-      await ctx.editMessageText(settingsText(summary), { parse_mode: "Markdown", reply_markup: settingsKeyboard(summary) });
+      const [timezone, quiet] = await Promise.all([effectiveStore.getTimezone(ctx.chat!.id), effectiveStore.getQuietHours(ctx.chat!.id)]);
+      await ctx.editMessageText(settingsText(summary, timezone, quiet), { parse_mode: "Markdown", reply_markup: settingsKeyboard(summary, timezone, quiet) });
       return;
     }
 
@@ -1460,6 +1562,38 @@ export function buildBot(store?: PersistentStore, token = process.env.BOT_TOKEN 
         }
         await ctx.reply(confirmText(tz, undefined, ctx.session.quietHoursStart, ctx.session.quietHoursEnd), { reply_markup: confirmKeyboard() });
       }
+      return;
+    }
+
+    if (ctx.session.settingsStep === "timezone") {
+      const timezone = ctx.message?.text?.trim();
+      if (!timezone) return;
+      await effectiveStore.setTimezone(ctx.chat!.id, timezone);
+      ctx.session.settingsStep = undefined;
+      const [summary, quiet] = await Promise.all([effectiveStore.getMorningSummary(ctx.chat!.id), effectiveStore.getQuietHours(ctx.chat!.id)]);
+      await ctx.reply(`Timezone set to ${timezone}.`);
+      await ctx.reply(settingsText(summary, timezone, quiet), { parse_mode: "Markdown", reply_markup: settingsKeyboard(summary, timezone, quiet) });
+      return;
+    }
+
+    if (ctx.session.settingsStep === "quietStart") {
+      const start = parseTime(ctx.message?.text?.trim() ?? "");
+      if (!start) { await ctx.reply("Please enter a valid time in HH:MM format (e.g. 22:00)."); return; }
+      ctx.session.quietHoursStart = start;
+      ctx.session.settingsStep = "quietEnd";
+      await ctx.reply("What time should your quiet hours end? (HH:MM, 24-hour format)\n\nExample: 07:00", { reply_markup: inlineKeyboard([[{ text: "Keep defaults", callback_data: "settings:qhours:skip" }], [{ text: "Back", callback_data: "settings:back" }]]) });
+      return;
+    }
+
+    if (ctx.session.settingsStep === "quietEnd") {
+      const end = parseTime(ctx.message?.text?.trim() ?? "");
+      if (!end) { await ctx.reply("Please enter a valid time in HH:MM format (e.g. 07:00)."); return; }
+      const start = ctx.session.quietHoursStart ?? DEFAULT_QUIET_START;
+      await effectiveStore.setQuietHours(ctx.chat!.id, start, end);
+      ctx.session.settingsStep = undefined;
+      const [summary, timezone] = await Promise.all([effectiveStore.getMorningSummary(ctx.chat!.id), effectiveStore.getTimezone(ctx.chat!.id)]);
+      await ctx.reply(`Quiet hours set to ${start}–${end}.`);
+      await ctx.reply(settingsText(summary, timezone, { start, end }), { parse_mode: "Markdown", reply_markup: settingsKeyboard(summary, timezone, { start, end }) });
       return;
     }
 
