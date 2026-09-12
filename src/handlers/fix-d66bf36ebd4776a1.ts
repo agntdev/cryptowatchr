@@ -19,6 +19,7 @@ export default function (
     }
     await next();
   });
+  composer.callbackQuery("user:active", async (ctx) => { await ctx.answerCallbackQuery(); });
 
   return composer;
 }

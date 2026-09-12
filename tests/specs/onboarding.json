@@ -1,0 +1,4 @@
+[
+  {"name":"start opens the main menu","steps":[{"send":{"text":"/start"},"expect":[{"method":"sendMessage"}]}]},
+  {"name":"help is available","steps":[{"send":{"text":"/help"},"expect":[{"method":"sendMessage"}]}]}
+]

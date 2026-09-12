@@ -1,0 +1,3 @@
+[
+  {"name":"alert creation opens","steps":[{"send":{"text":"/start"},"expect":[{"method":"sendMessage"}]},{"send":{"callback":"menu:alerts"},"expect":[{"method":"answerCallbackQuery"},{"method":"editMessageText","payload":{"text":"Choose the type of alert you want to create:"}}]}]}
+]

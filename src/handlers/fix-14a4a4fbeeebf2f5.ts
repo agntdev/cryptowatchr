@@ -74,6 +74,7 @@ export default function (): Composer<BotContext<Session>> {
     }
     return next();
   });
+  composer.callbackQuery("menu:alerts:refresh", async (ctx) => { await ctx.answerCallbackQuery(); });
 
   return composer;
 }

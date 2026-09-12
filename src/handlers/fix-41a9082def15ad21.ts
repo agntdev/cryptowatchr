@@ -143,6 +143,7 @@ export default function (
   store: PersistentStore,
 ): Composer<BotContext<Session>> {
   const composer = new Composer<BotContext<Session>>();
+  composer.callbackQuery("summary:run", async (ctx) => { await ctx.answerCallbackQuery(); });
 
   const token = process.env.BOT_TOKEN;
   if (token) {

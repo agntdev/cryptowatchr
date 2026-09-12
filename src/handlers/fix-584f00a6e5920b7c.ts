@@ -2,4 +2,6 @@ import { Composer } from "grammy";
 import type { BotContext } from "../toolkit/index.js";
 import type { Session } from "../bot.js";
 
-export default new Composer<BotContext<Session>>();
+const composer = new Composer<BotContext<Session>>();
+composer.callbackQuery("session:clear", async (ctx) => { await ctx.answerCallbackQuery(); });
+export default composer;
