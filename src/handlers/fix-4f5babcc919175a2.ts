@@ -37,5 +37,6 @@ function validateCoinMaps(): void {
 }
 
 validateCoinMaps();
+composer.callbackQuery("coins:status", async (ctx) => { await ctx.answerCallbackQuery(); });
 
 export default composer;

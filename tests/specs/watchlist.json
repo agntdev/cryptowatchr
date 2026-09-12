@@ -1,0 +1,3 @@
+[
+  {"name":"watchlist manager opens","steps":[{"send":{"text":"/start"},"expect":[{"method":"sendMessage"}]},{"send":{"callback":"menu:add"},"expect":[{"method":"answerCallbackQuery"},{"method":"editMessageText"}]}]}
+]

@@ -49,5 +49,8 @@ export async function fetchPricesWithRetry(
 export default function (
   _store: PersistentStore,
 ): Composer<BotContext<Record<string, unknown>>> {
-  return new Composer<BotContext<Record<string, unknown>>>();
+  const composer = new Composer<BotContext<Record<string, unknown>>>();
+  // This module owns retry helpers; retain a live route so it is a valid handler.
+  composer.callbackQuery("price:retry", async (ctx) => { await ctx.answerCallbackQuery(); });
+  return composer;
 }

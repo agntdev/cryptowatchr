@@ -17,6 +17,7 @@ export default function (store: PersistentStore): Composer<BotContext<Session>> 
       console.error("[CryptoWatchr] periodic sent_alerts cleanup failed:", err);
     });
   }, CLEANUP_INTERVAL_MS);
+  composer.callbackQuery("alerts:cleanup", async (ctx) => { await ctx.answerCallbackQuery(); });
 
   return composer;
 }

@@ -1,0 +1,3 @@
+[
+  {"name":"settings opens","steps":[{"send":{"text":"/start"},"expect":[{"method":"sendMessage"}]},{"send":{"callback":"menu:settings"},"expect":[{"method":"answerCallbackQuery"},{"method":"editMessageText"}]}]}
+]

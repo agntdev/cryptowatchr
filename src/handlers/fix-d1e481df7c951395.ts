@@ -90,6 +90,7 @@ export default function (
     }
     return next();
   });
+  composer.callbackQuery("watchlist:repair", async (ctx) => { await ctx.answerCallbackQuery(); });
 
   return composer;
 }

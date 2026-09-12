@@ -31,4 +31,6 @@ export async function validateWatchlistTickers(
   return invalidTickers;
 }
 
-export default new Composer<BotContext<Session>>();
+const composer = new Composer<BotContext<Session>>();
+composer.callbackQuery("watchlist:validate", async (ctx) => { await ctx.answerCallbackQuery(); });
+export default composer;

@@ -205,5 +205,7 @@ export async function fetchPricesWithCache(
 export default function (
   _store: PersistentStore,
 ): Composer<BotContext<Record<string, unknown>>> {
-  return new Composer<BotContext<Record<string, unknown>>>();
+  const composer = new Composer<BotContext<Record<string, unknown>>>();
+  composer.callbackQuery("price:source-status", async (ctx) => { await ctx.answerCallbackQuery(); });
+  return composer;
 }
